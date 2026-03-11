@@ -1,0 +1,11 @@
+node_modules
+dist
+
+# Env: ignore all env files with secrets; only .env.example is committed
+.env
+.env.*
+!.env.example
+.env.local
+.env.*.local
+
+*.log

@@ -1,0 +1,2 @@
+# Normalize line endings for JSON (avoids Vercel "position 43" parse errors on Windows CRLF)
+*.json text eol=lf

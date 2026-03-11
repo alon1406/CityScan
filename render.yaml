@@ -1,0 +1,17 @@
+# Render blueprint: deploy backend only (frontend can be on Vercel/static).
+# In Render Dashboard: New > Web Service, connect repo, set Root Directory to "backend"
+# (or to "CityScan" then backend subdir depending on repo root).
+services:
+  - type: web
+    name: cityscan-api
+    runtime: node
+    # If your repo root is CityScan, set rootDir to backend:
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        generateValue: true
+      # Add in Render Dashboard: MONGODB_URI, JWT_SECRET, FRONTEND_URL (and optional AI_SERVICE_URL)

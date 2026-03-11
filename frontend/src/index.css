@@ -1,0 +1,454 @@
+/*
+ * CityScan – design tokens and base styles
+ *
+ * UI principles applied:
+ * - Cohesive palette: one primary (sapphire), neutrals (slate), white backgrounds, one accent (teal) for focus and CTAs.
+ * - Clear hierarchy: Plus Jakarta Sans with weight/size contrast; labels and headings stand out from body.
+ * - Consistent spacing and radius: 12px inputs, rounded-pill for primary actions, 1.5rem padding in panels.
+ * - Subtle depth: light shadows (--cityscan-shadow) instead of hard borders for nav and panels.
+ * - Transitions: sidebar and backdrop use opacity/transform with cubic-bezier for a polished, non-jarring feel.
+ * - Accessible targets: large submit button and upload zones; icon buttons have title/aria-label.
+ */
+:root {
+  /* Primary: Deep Sapphire Blue */
+  --cityscan-primary: #0f3b7a;
+  --cityscan-primary-hover: #0d3268;
+  --cityscan-primary-light: #e8eef6;
+  /* Neutrals: Slate Gray */
+  --cityscan-neutral-900: #0f172a;
+  --cityscan-neutral-600: #475569;
+  --cityscan-neutral-500: #64748b;
+  --cityscan-neutral-400: #94a3b8;
+  --cityscan-neutral-200: #e2e8f0;
+  --cityscan-neutral-100: #f1f5f9;
+  /* Backgrounds */
+  --cityscan-bg: #ffffff;
+  --cityscan-bg-subtle: #f8fafc;
+  /* Accent: Teal-Blue */
+  --cityscan-accent: #0d9488;
+  --cityscan-accent-hover: #0f766e;
+  --cityscan-accent-light: #ccfbf1;
+  /* Typography */
+  --cityscan-font: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  /* Shadows */
+  --cityscan-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --cityscan-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --cityscan-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.1);
+  /* Hazard status colors */
+  --status-open-bg: #dc3545;
+  --status-open-text: #fff;
+  --status-in_progress-bg: #fd7e14;
+  --status-in_progress-text: #fff;
+  --status-resolved-bg: #198754;
+  --status-resolved-text: #fff;
+}
+
+/* Status badges (hazard report status) */
+.badge-status-open {
+  background-color: var(--status-open-bg) !important;
+  color: var(--status-open-text) !important;
+}
+.badge-status-in_progress {
+  background-color: var(--status-in_progress-bg) !important;
+  color: var(--status-in_progress-text) !important;
+}
+.badge-status-resolved {
+  background-color: var(--status-resolved-bg) !important;
+  color: var(--status-resolved-text) !important;
+}
+
+.cityscan-body,
+#root {
+  font-family: var(--cityscan-font);
+  color: var(--cityscan-neutral-900);
+  background: var(--cityscan-bg-subtle);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.cityscan-body {
+  margin: 0;
+}
+
+/* NavBar search loading spinner */
+.bi-arrow-repeat.spin {
+  animation: cityscan-spin 0.8s linear infinite;
+}
+@keyframes cityscan-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* NavBar search — clean bar with light blue fill */
+.cityscan-search-wrap {
+  box-shadow: var(--cityscan-shadow-sm);
+  font-family: var(--cityscan-font);
+  max-width: 480px;
+  background: var(--cityscan-primary-light);
+  border-color: var(--cityscan-neutral-200);
+}
+.cityscan-search-icon,
+.cityscan-search-icon-btn {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.cityscan-search-icon-btn {
+  cursor: pointer;
+  border-radius: 0.25rem;
+}
+.cityscan-search-icon-btn:hover:not(:disabled) {
+  background: var(--cityscan-neutral-100) !important;
+  color: var(--cityscan-primary);
+}
+.cityscan-search-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.cityscan-search-input,
+.cityscan-search-number {
+  padding: 0.5rem 0.4rem;
+  font-size: 0.95rem;
+  font-family: var(--cityscan-font);
+  background: transparent;
+  outline: none;
+}
+.cityscan-search-input {
+  min-width: 120px;
+}
+.cityscan-search-input::placeholder {
+  color: var(--cityscan-neutral-400);
+}
+.cityscan-search-suggestions {
+  width: 100%;
+  max-width: 480px;
+  z-index: 1050;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.cityscan-search-suggestion {
+  font-family: var(--cityscan-font);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.cityscan-search-suggestion:hover,
+.cityscan-search-suggestion:focus {
+  background: var(--cityscan-neutral-100);
+  outline: none;
+}
+
+/* NavBar: My Reports & Admin — fill on hover */
+.cityscan-nav-item {
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.cityscan-nav-item:hover {
+  background: var(--cityscan-primary-light) !important;
+  color: var(--cityscan-primary) !important;
+}
+.cityscan-nav-item:hover .bi {
+  opacity: 1;
+}
+
+/* NavBar: Admin new-reports badge — clearer and more visible */
+/* Reserve space so the badge does not overlap the next nav item (e.g. user name) */
+.cityscan-admin-link-with-badge {
+  margin-right: 0.5rem;
+  padding-right: 2.25rem !important;
+}
+.cityscan-admin-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25em 0.5em;
+  background: var(--status-open-bg) !important;
+  color: var(--status-open-text) !important;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+  animation: cityscan-badge-pulse 2s ease-in-out infinite;
+}
+.cityscan-admin-badge-label {
+  font-weight: 500;
+  opacity: 0.95;
+}
+@keyframes cityscan-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.88; }
+}
+
+/* NavBar: Sign out button — fill on hover */
+.cityscan-signout-btn {
+  transition: background 0.2s ease, color 0.2s ease;
+  font-family: var(--cityscan-font);
+}
+.cityscan-signout-btn:hover {
+  background: var(--cityscan-primary-light) !important;
+  color: var(--cityscan-primary) !important;
+}
+
+/* Admin: report row — fill when mouse on it, pressable */
+.cityscan-admin-report-row {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.cityscan-admin-report-row:hover,
+.cityscan-admin-report-row:hover td {
+  background: var(--cityscan-primary-light) !important;
+}
+
+/* Map: "My location" button — prevent text truncation and keep above FAB */
+.cityscan-my-location-wrap {
+  pointer-events: auto;
+}
+.cityscan-my-location-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cityscan-my-location-btn span {
+  white-space: nowrap;
+  overflow: visible;
+}
+
+/* Floating Action Button: new report */
+.cityscan-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--cityscan-primary);
+  color: #fff;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--cityscan-shadow-md);
+  cursor: pointer;
+  z-index: 1030;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.cityscan-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 28px rgba(15, 59, 122, 0.35);
+}
+.cityscan-fab:active {
+  transform: scale(0.98);
+}
+
+/* ----- Report Sidebar: modern panel + transitions ----- */
+.cityscan-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 1040;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+.cityscan-sidebar-backdrop[data-open="true"] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.cityscan-sidebar-panel {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  width: 100%;
+  max-width: 380px;
+  max-height: 85vh;
+  height: 85vh;
+  background: var(--cityscan-bg);
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.12);
+  z-index: 1050;
+  overflow-y: auto;
+  transform: translate(100%, -50%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+  visibility: hidden;
+  font-family: var(--cityscan-font);
+}
+.cityscan-sidebar-panel[data-open="true"] {
+  transform: translate(0, -50%);
+  visibility: visible;
+}
+
+.cityscan-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--cityscan-neutral-200);
+  background: var(--cityscan-bg);
+}
+
+.cityscan-sidebar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--cityscan-neutral-900);
+  margin: 0;
+}
+
+.cityscan-sidebar-close {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: var(--cityscan-neutral-100);
+  color: var(--cityscan-neutral-600);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.cityscan-sidebar-close:hover {
+  background: var(--cityscan-neutral-200);
+  color: var(--cityscan-neutral-900);
+}
+
+.cityscan-sidebar-body {
+  padding: 1.5rem;
+}
+
+.cityscan-sidebar-address {
+  font-weight: 600;
+  color: var(--cityscan-neutral-900);
+  margin: 0;
+  font-size: 0.95rem;
+}
+.cityscan-sidebar-coords {
+  font-size: 0.75rem;
+  color: var(--cityscan-neutral-400);
+  margin: 0.35rem 0 0 0;
+}
+
+/* Duplicate warning modal — on top of sidebar, close only via X */
+.cityscan-duplicate-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1060;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.cityscan-duplicate-modal {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  max-width: 360px;
+  width: 100%;
+  border: 2px solid #dc3545;
+  overflow: hidden;
+}
+.cityscan-duplicate-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  background: #dc3545;
+  color: #fff;
+}
+.cityscan-duplicate-modal-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0;
+}
+.cityscan-duplicate-modal-close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.cityscan-duplicate-modal-close:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+.cityscan-duplicate-modal-body {
+  padding: 1.25rem 1.5rem;
+  color: var(--cityscan-neutral-800);
+  font-size: 0.95rem;
+}
+
+.cityscan-label {
+  font-weight: 600;
+  color: var(--cityscan-neutral-600);
+  font-size: 0.875rem;
+}
+
+.cityscan-select,
+.cityscan-input {
+  border-radius: 12px;
+  border: 1px solid var(--cityscan-neutral-200);
+  font-family: var(--cityscan-font);
+}
+.cityscan-select:focus,
+.cityscan-input:focus {
+  border-color: var(--cityscan-accent);
+  box-shadow: 0 0 0 3px var(--cityscan-accent-light);
+}
+
+.cityscan-upload-zone {
+  min-height: 120px;
+  background: var(--cityscan-bg-subtle);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.cityscan-upload-zone:hover {
+  background: var(--cityscan-neutral-100);
+  border-color: var(--cityscan-neutral-400) !important;
+}
+
+.cityscan-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 120px;
+  padding: 1rem;
+}
+
+.cityscan-upload-preview {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+}
+.cityscan-upload-preview img {
+  max-height: 140px;
+  width: auto;
+  max-width: 100%;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.cityscan-submit-btn {
+  background: var(--cityscan-primary) !important;
+  border: none !important;
+  color: #fff !important;
+  font-size: 1rem;
+  font-family: var(--cityscan-font);
+  transition: background 0.2s, transform 0.1s;
+}
+.cityscan-submit-btn:hover {
+  background: var(--cityscan-primary-hover) !important;
+  color: #fff !important;
+}
+.cityscan-submit-btn:active {
+  transform: scale(0.98);
+}
+
+.cityscan-find-on-map {
+  border-radius: 12px;
+  font-weight: 600;
+  font-family: var(--cityscan-font);
+}
