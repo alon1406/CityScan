@@ -69,8 +69,10 @@ function getStatusBadgeClass(status: string): string {
 }
 
 export interface MapComponentProps {
-  position: Position
+  defaultCenter: Position
+  position: Position | null
   setSearchSelectHandler?: React.Dispatch<React.SetStateAction<((lat: number, lng: number) => void) | null>>
+  onRequestMyLocation: () => void
 }
 
 function MapCenter({ center }: { center: Position }) {
@@ -83,21 +85,26 @@ function MapCenter({ center }: { center: Position }) {
 
 function FlyToMyLocation({
   position,
+  onRequestMyLocation,
   skipNextMapClickRef,
   onClearSelection,
 }: {
-  position: Position
+  position: Position | null
+  onRequestMyLocation: () => void
   skipNextMapClickRef: React.MutableRefObject<boolean>
   onClearSelection: () => void
 }) {
   const map = useMap()
-  if (!position) return null
-  const setSkipAndFly = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
     skipNextMapClickRef.current = true
     onClearSelection()
-    map.flyTo(position, map.getZoom(), { duration: 0.8 })
+    if (position) {
+      map.flyTo(position, map.getZoom(), { duration: 0.8 })
+    } else {
+      onRequestMyLocation()
+    }
   }
   return (
     <div
@@ -124,9 +131,9 @@ function FlyToMyLocation({
           e.stopPropagation()
           skipNextMapClickRef.current = true
         }}
-        onClick={setSkipAndFly}
-        title="Focus on my location"
-        aria-label="Focus on my location"
+        onClick={handleClick}
+        title={position ? 'Focus on my location' : 'Get my location'}
+        aria-label={position ? 'Focus on my location' : 'Get my location'}
       >
         <i className="bi bi-geo-alt-fill" />
         <span>My location</span>
@@ -219,13 +226,28 @@ function OpenExistingReportsPopup({
 
 const NEARBY_RADIUS_M = 50
 
-export default function MapComponent({ position, setSearchSelectHandler = () => {} }: MapComponentProps) {
+export default function MapComponent({
+  defaultCenter,
+  position,
+  setSearchSelectHandler = () => {},
+  onRequestMyLocation,
+}: MapComponentProps) {
+  const mapCenter = position ?? defaultCenter
   const [hazards, setHazards] = useState<Hazard[]>([])
   const [selectedPosition, setSelectedPosition] = useState<Position | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [flyToTarget, setFlyToTarget] = useState<Position | null>(null)
   const [existingReportsAtClick, setExistingReportsAtClick] = useState<Hazard[]>([])
   const skipNextMapClickRef = useRef(false)
+  const hadPositionRef = useRef(false)
+
+  useEffect(() => {
+    if (position && !hadPositionRef.current) {
+      hadPositionRef.current = true
+      setFlyToTarget(position)
+    }
+    if (!position) hadPositionRef.current = false
+  }, [position])
 
   const loadHazards = useCallback(async () => {
     try {
@@ -300,7 +322,7 @@ export default function MapComponent({ position, setSearchSelectHandler = () => 
         <i className="bi bi-plus-lg" />
       </button>
       <MapContainer
-        center={position}
+        center={mapCenter}
         zoom={15}
         className="w-100 h-100 min-vh-50 rounded position-relative"
         style={{ minHeight: '400px' }}
@@ -310,10 +332,15 @@ export default function MapComponent({ position, setSearchSelectHandler = () => 
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapCenter center={position} />
+        <MapCenter center={mapCenter} />
         <MapFlyTo flyToTarget={flyToTarget} onFlown={handleFlown} />
-        <Marker position={position} />
-        <FlyToMyLocation position={position} skipNextMapClickRef={skipNextMapClickRef} onClearSelection={clearSelection} />
+        {position && <Marker position={position} />}
+        <FlyToMyLocation
+          position={position}
+          onRequestMyLocation={onRequestMyLocation}
+          skipNextMapClickRef={skipNextMapClickRef}
+          onClearSelection={clearSelection}
+        />
         <MapEvents onMapClick={handleMapClick} skipNextMapClickRef={skipNextMapClickRef} />
         <OpenExistingReportsPopup
           position={selectedPosition}

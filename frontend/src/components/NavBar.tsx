@@ -27,7 +27,7 @@ export interface NavBarProps {
 const ADMIN_POLL_INTERVAL_MS = 60_000
 
 export default function NavBar({ position = null, onSelectAddress = () => {} }: NavBarProps) {
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, user, logout, isDemoMode } = useAuth()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<NominatimSuggestion[]>([])
@@ -140,13 +140,24 @@ export default function NavBar({ position = null, onSelectAddress = () => {} }: 
     >
       <div className="container-fluid">
         <div className="d-flex align-items-center w-100 justify-content-between flex-lg-row flex-column gap-2 gap-lg-0">
-          <Link
-            to="/"
-            className="navbar-brand me-lg-4 text-decoration-none fw-semibold"
-            style={{ color: 'var(--cityscan-primary)', fontSize: '1.25rem' }}
-          >
-            CityScan
-          </Link>
+          <div className="d-flex align-items-center gap-2 me-lg-4">
+            <Link
+              to="/"
+              className="navbar-brand text-decoration-none fw-semibold"
+              style={{ color: 'var(--cityscan-primary)', fontSize: '1.25rem' }}
+            >
+              CityScan
+            </Link>
+            {isDemoMode && (
+              <span
+                className="badge rounded-pill px-2 py-1 small fw-normal"
+                style={{ background: 'var(--cityscan-neutral-500)', color: '#fff', fontSize: '0.7rem' }}
+                title="You are in demo mode — simulated environment"
+              >
+                Demo Mode
+              </span>
+            )}
+          </div>
 
           <div
             className="flex-grow-1 d-flex justify-content-center mx-2 mx-lg-0 position-relative"

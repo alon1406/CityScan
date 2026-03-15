@@ -9,7 +9,8 @@ router.post('/register', register);
 // POST /auth/login — get token for existing user
 router.post('/login', login);
 
-// POST /auth/demo — sign in as demo admin or user (creates account if needed)
+// POST /auth/demo or /auth/demo-login — sign in as demo user/admin (find or create guest account)
 router.post('/demo', demoLogin);
+router.post('/demo-login', demoLogin);
 
 export { router };

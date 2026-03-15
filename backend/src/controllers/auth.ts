@@ -110,14 +110,14 @@ export async function login(req: Request, res: Response): Promise<void> {
 }
 
 // ========== DEMO LOGIN ==========
-const DEMO_ADMIN_EMAIL = 'admin-demo@cityscan.demo';
-const DEMO_USER_EMAIL = 'demouser@cityscan.demo';
+const DEMO_ADMIN_EMAIL = 'guest_admin@cityscan.com';
+const DEMO_USER_EMAIL = 'guest_user@cityscan.com';
 const DEMO_PASSWORD = 'demo123';
 
 /**
- * POST /auth/demo — sign in as demo admin or user. Finds or creates the demo account.
+ * POST /auth/demo or /auth/demo-login — sign in as demo admin or user for recruiters.
  * Body: { role: 'admin' | 'user' }
- * Returns same shape as login: { token, user }.
+ * Finds or creates guest_user@cityscan.com (user) or guest_admin@cityscan.com (admin), returns JWT + user.
  */
 export async function demoLogin(req: Request, res: Response): Promise<void> {
   try {
@@ -133,7 +133,7 @@ export async function demoLogin(req: Request, res: Response): Promise<void> {
       user = await User.create({
         email,
         password: hashedPassword,
-        name: role === 'admin' ? 'admin-demo' : 'Demo User',
+        name: role === 'admin' ? 'Guest Admin' : 'Guest User',
         role: role === 'admin' ? 'admin' : 'user',
       });
     } else {

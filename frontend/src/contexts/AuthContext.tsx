@@ -7,6 +7,7 @@ interface AuthContextValue {
   user: User | null
   token: string | null
   isLoading: boolean
+  isDemoMode: boolean
   login: (email: string, password: string) => Promise<void>
   demoLogin: (role: 'admin' | 'user') => Promise<void>
   register: (email: string, password: string, name?: string) => Promise<void>
@@ -18,23 +19,30 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 const TOKEN_KEY = 'cityscan_token'
 const USER_KEY = 'cityscan_user'
+const DEMO_MODE_KEY = 'cityscan_demo'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isDemoMode, setIsDemoMode] = useState(false)
 
   useEffect(() => {
     const stored = localStorage.getItem(TOKEN_KEY)
     const storedUser = localStorage.getItem(USER_KEY)
+    const storedDemo = localStorage.getItem(DEMO_MODE_KEY)
     if (stored && storedUser) {
       try {
         setToken(stored)
         setUser(JSON.parse(storedUser) as User)
+        setIsDemoMode(storedDemo === '1')
       } catch {
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(USER_KEY)
+        localStorage.removeItem(DEMO_MODE_KEY)
       }
+    } else {
+      setIsDemoMode(false)
     }
     setIsLoading(false)
   }, [])
@@ -51,8 +59,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token: t, user: u } = await api.demoLogin(role)
     localStorage.setItem(TOKEN_KEY, t)
     localStorage.setItem(USER_KEY, JSON.stringify(u))
+    localStorage.setItem(DEMO_MODE_KEY, '1')
     setToken(t)
     setUser(u)
+    setIsDemoMode(true)
   }, [])
 
   const register = useCallback(async (email: string, password: string, name?: string) => {
@@ -66,14 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+    localStorage.removeItem(DEMO_MODE_KEY)
     setToken(null)
     setUser(null)
+    setIsDemoMode(false)
   }, [])
 
   const value: AuthContextValue = {
     user,
     token,
     isLoading,
+    isDemoMode,
     login,
     demoLogin,
     register,

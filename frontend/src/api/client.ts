@@ -61,7 +61,7 @@ export async function demoLogin(role: 'admin' | 'user'): Promise<LoginResponse> 
     const user = role === 'admin' ? MOCK_DEMO_ADMIN : MOCK_DEMO_USER
     return Promise.resolve({ token: 'demo-token', user })
   }
-  return api.post<LoginResponse>('/auth/demo', { role })
+  return api.post<LoginResponse>('/auth/demo-login', { role })
 }
 
 export async function register(email: string, password: string, name?: string): Promise<RegisterResponse> {
