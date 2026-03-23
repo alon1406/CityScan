@@ -245,11 +245,19 @@ export default function NavBar({ position = null, onSelectAddress = () => {} }: 
                     to="/admin"
                     className={`cityscan-nav-item cityscan-admin-link btn btn-link text-decoration-none d-flex align-items-center gap-2 rounded-pill px-3 py-2 position-relative ${newReportsCount != null && newReportsCount > 0 ? 'cityscan-admin-link-with-badge' : ''}`}
                     style={{ color: 'var(--cityscan-neutral-600)', fontFamily: 'var(--cityscan-font)' }}
-                    title={newReportsCount != null && newReportsCount > 0 ? `${newReportsCount} open report(s) — go to Admin` : 'Admin — All reports'}
-                    aria-label={newReportsCount != null && newReportsCount > 0 ? `Admin — ${newReportsCount} new open reports` : 'Admin'}
+                    title={
+                      newReportsCount != null && newReportsCount > 0
+                        ? `${newReportsCount} open report(s) — Manage reports`
+                        : 'Manage reports'
+                    }
+                    aria-label={
+                      newReportsCount != null && newReportsCount > 0
+                        ? `Manage reports — ${newReportsCount} open reports`
+                        : 'Manage reports'
+                    }
                   >
                     <i className="bi bi-shield-check fs-5" />
-                    <span className="d-none d-md-inline">Admin</span>
+                    <span className="d-none d-md-inline">Manage reports</span>
                     {newReportsCount != null && newReportsCount > 0 && (
                       <span className="cityscan-admin-badge position-absolute top-0 start-100 translate-middle badge rounded-pill">
                         {newReportsCount > 99 ? '99+' : newReportsCount}
