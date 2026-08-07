@@ -80,7 +80,18 @@ const envSchema = z.object({
   SSE_HEARTBEAT_MS: z.coerce.number().int().positive().default(25_000),
 });
 
-const parsed = envSchema.safeParse(process.env);
+/**
+ * Blank means "not set".
+ *
+ * An empty environment variable is how a shell, a Docker `environment:` block or a
+ * template file expresses "no value" — treating `''` as a real value makes every
+ * `.optional()` below unreachable and turns a blank line into a validation failure.
+ */
+const rawEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([, v]) => v !== undefined && v.trim() !== '')
+);
+
+const parsed = envSchema.safeParse(rawEnv);
 
 if (!parsed.success) {
   const lines = parsed.error.issues.map((i) => `  - ${i.path.join('.') || '(root)'}: ${i.message}`);
