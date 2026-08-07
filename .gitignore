@@ -12,10 +12,11 @@ dist
 dist-ssr
 *.local
 
-# Env: ignore all env files with secrets; only .env.example is committed
+# Env: ignore all env files with secrets; only *.example files are committed
 .env
 .env.*
 !.env.example
+!.env.*.example
 .env.local
 .env.*.local
 

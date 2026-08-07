@@ -1,0 +1,38 @@
+# Local MongoDB for development only.
+#
+#   docker compose -f docker-compose.dev.yml up -d     (or: npm run db:up from backend/)
+#
+# This is the analogue of SmartCollect's compose.yaml, but deliberately different
+# in four ways that each fix a real problem there:
+#
+#   1. Docker is OPTIONAL here. SmartCollect's spring-boot-docker-compose starts the
+#      container during bootRun, so the app cannot boot without Docker Desktop running.
+#      Here the app just reads MONGODB_URI — point it at Atlas and skip Docker entirely.
+#   2. FIXED host port. SmartCollect uses `ports: - '5432'` with no host mapping, so
+#      Docker assigns a random port every run and a GUI client has to hunt for it.
+#      Here MongoDB Compass always connects to mongodb://localhost:27017.
+#   3. NAMED VOLUME. SmartCollect has none, so `docker compose down` destroys the
+#      database. Here the data survives.
+#   4. PINNED image and a HEALTHCHECK, instead of `:latest` and hoping.
+#
+# The production compose file (Phase 3) is separate and runs the backend itself,
+# n8n and Nginx Proxy Manager.
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: cityscan-mongo-dev
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-dev-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mongo-dev-data:
