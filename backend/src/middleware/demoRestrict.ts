@@ -1,54 +1,50 @@
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 import type { AuthRequest } from './auth.middleware.js';
-
-const DEMO_ADMIN_EMAIL = 'admin-demo@cityscan.demo';
-const DEMO_BLOCK_MESSAGE = 'This action is not allowed in demo mode.';
+import { config } from '../config/env.js';
+import { ForbiddenException } from '../errors/index.js';
 
 /**
- * Restricts demo admin (admin-demo@cityscan.demo) to read-only + status updates.
- * - Allow all GET.
- * - Allow PATCH only to /hazards/:id (report status update).
- * - Block POST, PUT, DELETE with 403.
- * Must run after optionalAuth so req.user is set when token is present.
+ * Keeps the public demo admin read-only, so a recruiter clicking around cannot delete
+ * anyone's data. Allows every GET plus status updates on a single hazard; blocks all
+ * other writes.
+ *
+ * BUG FIX: this guard has never actually fired. It compared against a literal
+ * `'admin-demo@cityscan.demo'` while `controllers/auth.ts` created the demo account as
+ * `'guest_admin@cityscan.com'` — two different addresses, so `email !== DEMO_ADMIN` was
+ * always true and every request fell straight through to `next()`. Both sides now read
+ * the same value from `config.demo.adminEmail`, which is exactly why identity belongs
+ * in configuration rather than in a literal repeated across files.
+ *
+ * Must run after `optionalAuth`, which is what puts `req.user` on the request.
  */
-export function demoRestrict(req: AuthRequest, res: Response, next: NextFunction): void {
-  const user = req.user;
-  if (!user) {
-    next();
-    return;
-  }
-  const email = (user as unknown as { email?: string }).email;
-  if (email !== DEMO_ADMIN_EMAIL) {
+const HAZARD_ID_PATH = /^\/hazards\/[0-9a-fA-F]{24}$/;
+
+export function demoRestrict(req: AuthRequest, _res: Response, next: NextFunction): void {
+  const email = req.user?.email;
+  if (!email || email.toLowerCase() !== config.demo.adminEmail) {
     next();
     return;
   }
 
   const method = req.method.toUpperCase();
-  const path = (req.originalUrl || req.url || '').split('?')[0];
-
-  if (method === 'GET') {
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
     next();
     return;
   }
-  // Allow POST to auth so demo admin can log in or use demo endpoint
-  if (method === 'POST' && (path === '/auth/login' || path === '/auth/register' || path === '/auth/demo')) {
+
+  const path = (req.originalUrl || req.url || '').split('?')[0] ?? '';
+
+  // Logging in again is always allowed.
+  if (method === 'POST' && (path === '/auth/login' || path === '/auth/demo' || path === '/auth/demo-login')) {
     next();
     return;
   }
-  if (method === 'PATCH') {
-    // Allow PATCH only to /hazards/:id (report status update)
-    if (/^\/hazards\/[^/]+$/.test(path ?? '')) {
-      next();
-      return;
-    }
-    res.status(403).json({ message: DEMO_BLOCK_MESSAGE });
+
+  // The one write the demo admin may perform: moving a report's status.
+  if (method === 'PATCH' && HAZARD_ID_PATH.test(path)) {
+    next();
     return;
   }
 
-  if (method === 'POST' || method === 'PUT' || method === 'DELETE') {
-    res.status(403).json({ message: DEMO_BLOCK_MESSAGE });
-    return;
-  }
-
-  next();
+  next(new ForbiddenException('This action is not allowed in demo mode.'));
 }

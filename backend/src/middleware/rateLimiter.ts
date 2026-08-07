@@ -1,24 +1,32 @@
 import rateLimit from 'express-rate-limit';
+import { config } from '../config/env.js';
 
-const windowMs = Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000; // 15 min default
-const max = Number(process.env.RATE_LIMIT_MAX) || 500; // 500 req per window to avoid 429 during dev/demo
+/**
+ * Limits are read from `config`, not from `process.env` at module scope as before —
+ * that read ran before dotenv loaded, so every value silently fell back to its default
+ * and the `.env` settings had no effect.
+ */
 
-/** General API rate limit — applies to all routes */
+/** General API limit. */
 export const rateLimiter = rateLimit({
-  windowMs,
-  max,
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
+  /**
+   * The SSE endpoint holds one long-lived connection per open tab. Counting it as a
+   * request would let a handful of tabs exhaust the window and lock a user out of the
+   * whole API, so it is exempt.
+   */
+  skip: (req) => req.path === '/hazards/stream' || req.path === '/stream',
 });
 
-const authWindowMs = Number(process.env.AUTH_RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000;
-const authMax = Number(process.env.AUTH_RATE_LIMIT_MAX) || 100;
-
-/** Stricter limit for login/register to reduce brute-force risk. Demo login is skipped (no credentials). */
+/** Stricter limit on the credential endpoints, to slow brute force. */
 export const authRateLimiter = rateLimit({
-  windowMs: authWindowMs,
-  max: authMax,
+  windowMs: config.rateLimit.authWindowMs,
+  max: config.rateLimit.authMax,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/demo' || req.originalUrl?.endsWith('/auth/demo'),
+  // The demo button carries no credentials, so there is nothing to brute-force.
+  skip: (req) => req.path === '/demo' || req.path === '/demo-login',
 });

@@ -1,64 +1,94 @@
-import express from 'express';
-import dotenv from 'dotenv';
+import path from 'node:path';
+import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import connectDB from './config/db.js';
-import { healthRoutes, authRoutes, usersRoutes, hazardsRoutes, logsRoutes } from './routes/index.js';
-import { rateLimiter, authRateLimiter } from './middleware/rateLimiter.js';
-import { optionalAuth } from './middleware/optionalAuth.js';
-import { demoRestrict } from './middleware/demoRestrict.js';
 
-// STEP 1: Load environment variables before anything else
-dotenv.config();
+import { createContainer, type Container } from './container.js';
+import { config } from './config/env.js';
+import {
+  hazardRoutes,
+  authRoutes,
+  userRoutes,
+  logRoutes,
+  healthRoutes,
+} from './routes/index.js';
+import {
+  createAuthMiddleware,
+  createOptionalAuth,
+  demoRestrict,
+  rateLimiter,
+  authRateLimiter,
+  errorHandler,
+  notFoundHandler,
+} from './middleware/index.js';
 
-const app = express();
-const port = process.env.PORT ?? 5000;
+/**
+ * Builds the Express application.
+ *
+ * Deliberately does not listen, connect to a database, or load environment variables —
+ * `server.ts` owns all three. Separating construction from startup is what makes the
+ * app testable: a test can call `createApp()` against an in-memory database without a
+ * port ever being bound.
+ */
+export function createApp(container: Container = createContainer()): Express {
+  const app = express();
 
-const frontendOrigin = process.env.FRONTEND_URL || process.env.CORS_ORIGIN;
-const corsOptions = frontendOrigin
-  ? { origin: frontendOrigin }
-  : {}; // dev: allow all origins when FRONTEND_URL not set
+  // Behind Nginx Proxy Manager in Phase 3; without this the rate limiter would see
+  // every request as coming from the proxy's single IP.
+  app.set('trust proxy', 1);
 
-// STEP 3: Global Middlewares
-app.use(cors(corsOptions));
-app.use(helmet());
-// Allow larger payloads for hazard reports with multiple photos (base64)
-app.use(express.json({ limit: '8mb' }));
-app.use(rateLimiter);
-app.use(optionalAuth);
-app.use(demoRestrict);
+  // --- Security & parsing ---
+  app.use(
+    cors(
+      config.cors.origins
+        ? { origin: config.cors.origins, credentials: true }
+        : {} // development only — production start-up refuses an unset origin
+    )
+  );
+  app.use(
+    helmet({
+      // Photos are served from this origin and embedded by the frontend on another.
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    })
+  );
+  app.use(express.json({ limit: '8mb' }));
 
-// STEP 4: Route Definitions
-app.use('/health', healthRoutes);
-app.use('/auth', authRateLimiter, authRoutes);
-app.use('/users', usersRoutes);
-app.use('/hazards', hazardsRoutes);
-app.use('/logs', logsRoutes);
+  app.use(rateLimiter);
 
-// Root Endpoint for testing
-app.get('/', (_req, res) => {
-  res.send('CityScan API is running...');
-});
+  // Resolves req.user when a token is present. Must precede demoRestrict, which
+  // needs to know who is calling.
+  app.use(createOptionalAuth(container.auth));
+  app.use(demoRestrict);
 
-// STEP 5: Global Error Handling Middleware
-app.use((err: any, _req: any, res: any, _next: any) => {
-  console.error(err?.stack ?? err);
-  const isProduction = process.env.NODE_ENV === 'production';
-  const status = err?.status ?? err?.statusCode ?? 500;
-  const message = status === 413
-    ? 'Request too large. Try fewer or smaller photos.'
-    : (err?.message && !isProduction ? err.message : 'Something went wrong!');
-  res.status(status >= 400 && status < 600 ? status : 500).json({
-    message,
-    ...(isProduction ? {} : { error: err?.message }),
+  // --- Static: compressed hazard photos ---
+  const uploadsPath = path.isAbsolute(config.photos.dir)
+    ? config.photos.dir
+    : path.join(config.backendRoot, config.photos.dir);
+  app.use(
+    config.photos.routePrefix,
+    express.static(uploadsPath, {
+      immutable: true, // filenames carry a uuid, so a given URL never changes content
+      maxAge: '30d',
+      fallthrough: true,
+    })
+  );
+
+  // --- Routes ---
+  const authMiddleware = createAuthMiddleware(container.auth);
+
+  app.use('/health', healthRoutes(container.events, container.ai));
+  app.use('/auth', authRateLimiter, authRoutes(container.controllers.auth));
+  app.use('/users', userRoutes(container.controllers.user, authMiddleware));
+  app.use('/hazards', hazardRoutes(container.controllers.hazard, authMiddleware));
+  app.use('/logs', logRoutes(container.controllers.log, authMiddleware));
+
+  app.get('/', (_req, res) => {
+    res.json({ name: 'CityScan API', status: 'running', profile: config.profile });
   });
-});
 
-// STEP 6: Connect to DB then start Server (so first request can use DB)
-async function start() {
-  await connectDB();
-  app.listen(port, () => {
-    console.log(`🚀 Server is running on http://localhost:${port}`);
-  });
+  // --- Terminal handlers, in this order ---
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
 }
-start();
