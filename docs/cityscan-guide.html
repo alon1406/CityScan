@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>CityScan — מדריך ארכיטקטורה</title>
+<style>
+  @page { size: A4; margin: 18mm 15mm 16mm 15mm; }
+
+  * { box-sizing: border-box; }
+
+  html { font-size: 10.5pt; }
+
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    line-height: 1.65;
+    color: #1a1d21;
+    margin: 0;
+    direction: rtl;
+  }
+
+  /* ---- Code must stay LTR inside an RTL document ---- */
+  code, pre, .ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-family: Consolas, "Courier New", monospace;
+  }
+  code {
+    background: #f1f3f5;
+    border: 1px solid #e3e6ea;
+    border-radius: 3px;
+    padding: 0.05em 0.35em;
+    font-size: 0.88em;
+    color: #0b3d5c;
+    display: inline-block;
+  }
+  pre {
+    background: #1e2430;
+    color: #e6edf3;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 8.6pt;
+    line-height: 1.5;
+    overflow: visible;
+    white-space: pre;
+    text-align: left;
+    page-break-inside: avoid;
+    margin: 10px 0;
+  }
+  pre code { background: none; border: none; color: inherit; padding: 0; display: block; }
+
+  /* ---- Cover ---- */
+  .cover {
+    height: 245mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+    text-align: center;
+  }
+  .cover h1 { font-size: 40pt; margin: 0 0 4px; letter-spacing: -1px; color: #0d1b2a; }
+  .cover .sub { font-size: 15pt; color: #4a5560; margin-bottom: 34px; font-weight: 400; }
+  .cover .rule { width: 70px; height: 4px; background: #1f6feb; margin: 0 auto 34px; border-radius: 2px; }
+  .cover .meta { font-size: 10pt; color: #6b7680; line-height: 2; }
+  .cover .badge {
+    display: inline-block; background: #eef4ff; color: #1f4e8c;
+    border: 1px solid #cfe0f8; border-radius: 20px;
+    padding: 5px 16px; font-size: 9.5pt; margin: 4px 3px;
+  }
+
+  h2 {
+    font-size: 17pt; color: #0d1b2a; margin: 26px 0 10px;
+    padding-bottom: 7px; border-bottom: 2.5px solid #1f6feb;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 12.5pt; color: #17303f; margin: 18px 0 7px;
+    page-break-after: avoid;
+  }
+  h4 { font-size: 11pt; color: #35414d; margin: 13px 0 5px; page-break-after: avoid; }
+
+  p { margin: 8px 0; }
+  ul, ol { margin: 8px 0; padding-right: 20px; padding-left: 0; }
+  li { margin: 4px 0; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 12px 0;
+    font-size: 9.3pt; page-break-inside: avoid;
+  }
+  th {
+    background: #17303f; color: #fff; text-align: right;
+    padding: 8px 10px; font-weight: 600; border: 1px solid #17303f;
+  }
+  td { padding: 7px 10px; border: 1px solid #dde2e7; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafb; }
+
+  .box {
+    border-radius: 6px; padding: 12px 15px; margin: 13px 0;
+    page-break-inside: avoid; border-right: 4px solid;
+  }
+  .box p:first-child { margin-top: 0; }
+  .box p:last-child { margin-bottom: 0; }
+  .bug   { background: #fff5f5; border-color: #e03131; }
+  .fix   { background: #f0fbf4; border-color: #2f9e44; }
+  .note  { background: #f4f8ff; border-color: #1f6feb; }
+  .warn  { background: #fff9ec; border-color: #f08c00; }
+  .talk  { background: #f7f4ff; border-color: #7048e8; }
+
+  .box .label {
+    display: block; font-weight: 700; font-size: 9.5pt;
+    margin-bottom: 5px; letter-spacing: .3px;
+  }
+  .bug .label  { color: #c92a2a; }
+  .fix .label  { color: #2b8a3e; }
+  .note .label { color: #1864ab; }
+  .warn .label { color: #e8590c; }
+  .talk .label { color: #5f3dc4; }
+
+  .page-break { page-break-before: always; }
+
+  .diagram {
+    background: #fbfcfd; border: 1px solid #dde2e7; border-radius: 6px;
+    padding: 16px; margin: 13px 0; page-break-inside: avoid;
+  }
+  .diagram pre { background: none; color: #17303f; font-size: 8.2pt; margin: 0; }
+
+  /* ---- Boxed diagrams. Built from real elements, not ASCII art:
+         Hebrew inside a monospace box drawing gets bidi-reordered and the
+         borders stop lining up. ---- */
+  .svc-row { display: flex; align-items: stretch; gap: 0; justify-content: center; }
+  .svc {
+    flex: 1; border: 1.5px solid #1f6feb; border-radius: 6px; background: #fff;
+    padding: 10px 8px; text-align: center; min-width: 0;
+  }
+  .svc .t { font-weight: 700; font-size: 9.5pt; color: #0d1b2a; margin-bottom: 3px; }
+  .svc .d { font-size: 8.2pt; color: #5a6673; line-height: 1.5; }
+  .svc .port { font-size: 7.8pt; color: #8a939c; margin-top: 3px; }
+  .arrow {
+    display: flex; flex-direction: column; justify-content: center;
+    align-items: center; padding: 0 7px; min-width: 54px;
+  }
+  .arrow .lbl { font-size: 7.2pt; color: #6b7680; line-height: 1.3; }
+  .arrow .ln { font-size: 13pt; color: #1f6feb; line-height: 1; }
+
+  .stack { max-width: 460px; margin: 0 auto; }
+  .layer {
+    border: 1.5px solid #c7d3e0; background: #fff; border-radius: 5px;
+    padding: 7px 12px; margin: 0; display: flex; justify-content: space-between;
+    align-items: center; gap: 10px;
+  }
+  .layer .nm { font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate;
+               font-weight: 600; color: #0b3d5c; font-size: 9.2pt; }
+  .layer .ds { font-size: 8.5pt; color: #5a6673; }
+  .layer.core { border-color: #1f6feb; border-width: 2px; background: #f4f8ff; }
+  .layer.core .ds { color: #1864ab; font-weight: 600; }
+  .down { text-align: center; color: #97a3b0; font-size: 11pt; line-height: 1.1; margin: 1px 0; }
+
+  .band {
+    border: 1.5px dashed #f08c00; background: #fffaf0; border-radius: 6px;
+    padding: 9px 13px; text-align: center;
+  }
+  .band .t { font-weight: 700; color: #b35309; font-size: 9.5pt; }
+  .band .d { font-size: 8.4pt; color: #7a5a2e; margin-top: 2px; }
+  .band.cross { border-color: #7048e8; background: #f8f5ff; }
+  .band.cross .t { color: #5f3dc4; }
+  .band.cross .d { color: #61549b; }
+
+  /* ---- Numbered pipeline ---- */
+  .flow { counter-reset: step; margin: 12px 0; }
+  .flow .s {
+    display: flex; gap: 10px; align-items: baseline;
+    padding: 4px 0; border-bottom: 1px dotted #e3e6ea;
+  }
+  .flow .s:last-child { border-bottom: none; }
+  .flow .n {
+    flex: 0 0 20px; height: 20px; border-radius: 50%;
+    background: #17303f; color: #fff; font-size: 7.5pt;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700;
+  }
+  .flow .s.gate .n { background: #f08c00; }
+  .flow .s.layer-step .n { background: #1f6feb; }
+  .flow .nm { font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate;
+              font-weight: 600; color: #0b3d5c; font-size: 8.8pt; flex: 0 0 auto; }
+  .flow .ds { font-size: 8.8pt; color: #45525f; }
+  .flow .sep {
+    font-size: 8pt; color: #8a939c; text-align: center;
+    padding: 5px 0; font-weight: 600; letter-spacing: .5px;
+  }
+  .flow .sub { padding-right: 40px; font-size: 8.5pt; color: #45525f; }
+  .flow .sub div { padding: 2px 0; }
+  .flow .sub .k { font-family: Consolas, monospace; direction: ltr;
+                  unicode-bidi: isolate; color: #0b3d5c; }
+
+  .three-col { display: flex; gap: 0; align-items: stretch; }
+  .three-col .col { flex: 1; padding: 10px; min-width: 0; }
+  .three-col .col h5 { margin: 0 0 6px; font-size: 9.3pt; color: #0d1b2a; text-align: center; }
+  .three-col .col .sub2 { font-size: 7.8pt; color: #8a939c; text-align: center; margin-bottom: 8px; }
+  .three-col .col ul { list-style: none; padding: 0; margin: 0; font-size: 8.1pt; }
+  .three-col .col li {
+    font-family: Consolas, monospace; direction: ltr; unicode-bidi: isolate;
+    text-align: left; padding: 3px 0; color: #35414d; border-bottom: 1px solid #eef1f4;
+  }
+  .three-col .mid { flex: 0 0 62px; display: flex; flex-direction: column;
+                    justify-content: center; align-items: center; gap: 16px; }
+  .three-col .mid .op { font-size: 7.5pt; color: #6b7680; text-align: center; line-height: 1.3; }
+  .gone { color: #c92a2a !important; }
+  .kept { color: #2b8a3e !important; }
+
+  .toc { font-size: 10.5pt; }
+  .toc ol { padding-right: 22px; }
+  .toc li { margin: 6px 0; }
+  .toc .n { color: #6b7680; font-size: 9pt; }
+
+  .kv { display: flex; gap: 10px; margin: 5px 0; align-items: baseline; }
+  .kv .k { min-width: 105px; font-weight: 600; color: #35414d; font-size: 9.5pt; }
+
+  .muted { color: #6b7680; font-size: 9.2pt; }
+  .strike { text-decoration: line-through; color: #a0a8b0; }
+  em.q { color: #35414d; }
+  footer.sig { margin-top: 26px; padding-top: 10px; border-top: 1px solid #dde2e7; font-size: 8.5pt; color: #8a939c; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<div class="cover">
+  <h1>CityScan</h1>
+  <div class="sub">מדריך ארכיטקטורה, זרימה ושיקולי תכנון</div>
+  <div class="rule"></div>
+  <div>
+    <span class="badge">React 19 + Vite</span>
+    <span class="badge">Node.js + Express 5</span>
+    <span class="badge">TypeScript</span>
+    <span class="badge">MongoDB</span>
+    <span class="badge">FastAPI + Gemini</span>
+    <span class="badge">Leaflet</span>
+  </div>
+  <div class="meta" style="margin-top:38px">
+    אפליקציית Web לדיווח על מפגעים עירוניים<br>
+    ארכיטקטורת שכבות בסטנדרט של פרויקט SmartCollect<br>
+    <span style="color:#98a1aa">אוגוסט 2026</span>
+  </div>
+</div>
+
+<!-- ============ TOC ============ -->
+<h2>תוכן עניינים</h2>
+<div class="toc">
+<ol>
+  <li>מה זה CityScan — תקציר <span class="n">· המשפט שאומרים ראשון</span></li>
+  <li>מה יש בפרויקט — שלושה שירותים</li>
+  <li>הכלים ולמה נבחרו</li>
+  <li>הארכיטקטורה — שני צירים</li>
+  <li>צינור ה-Middleware</li>
+  <li>הזרימה המלאה — מסלול של דיווח אחד</li>
+  <li>כל תיקייה, מה היא עושה</li>
+  <li>שלוש השכבות שהכי מבלבלות — data, boundaries, converters</li>
+  <li>מה שונה מ-SmartCollect ולמה</li>
+  <li>השינויים — לפני ואחרי</li>
+  <li>שלושת הבאגים שנמצאו ותוקנו</li>
+  <li>בדיקות</li>
+  <li>שיקולי עלות (FinOps)</li>
+  <li>מה הלאה — שלבים 2 ו-3</li>
+  <li>איך להסביר את זה לאנשים</li>
+</ol>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2>1. מה זה CityScan</h2>
+
+<p>אפליקציית Web שבה תושב מדווח על מפגע עירוני — בור בכביש, פנס שבור, פסולת, הצפה — על ידי לחיצה על מפה, צילום תמונה ובחירת סוג. הדיווחים מוצגים לכולם על המפה, ולעירייה יש פאנל ניהול לעדכון סטטוס.</p>
+
+<h3>המשפט שאומרים ראשון</h3>
+<div class="note">
+  <span class="label">Elevator pitch</span>
+  <p>״CityScan היא מערכת דיווח מפגעים עירוניים בארכיטקטורת שלושה שירותים: Frontend ב-React, API ב-Node/TypeScript בארכיטקטורת שכבות קפדנית, ושירות AI נפרד בפייתון. הדבר המעניין טכנית הוא <strong>מניעת דיווחים כפולים בשתי רמות</strong> — שאילתה גאוגרפית על אינדקס <code>2dsphere</code> תופסת את המקרה הוודאי, ו-LLM מכריע במקרים המעורפלים. והכל בעלות של 5$ לחודש.״</p>
+</div>
+
+<h3>מה המערכת יודעת לעשות</h3>
+<table>
+  <tr><th style="width:32%">יכולת</th><th>מימוש</th></tr>
+  <tr><td>דיווח מפגע עם מיקום מדויק</td><td>לחיצה על מפת Leaflet, שמירת <code>latitude</code>/<code>longitude</code> + GeoJSON</td></tr>
+  <tr><td>מניעת כפילויות ברדיוס 50 מ׳</td><td><code>$geoWithin</code> + <code>$centerSphere</code> על אינדקס <code>2dsphere</code></td></tr>
+  <tr><td>הכרעת כפילות מעורפלת</td><td>Google Gemini דרך שירות FastAPI נפרד</td></tr>
+  <tr><td>תיאור תמונה אוטומטי</td><td>Gemini Vision, מאחורי פרוקסי בשרת</td></tr>
+  <tr><td>אימות והרשאות</td><td>JWT + bcrypt + הפרדת תפקידים <code>user</code>/<code>admin</code></td></tr>
+  <tr><td>עדכון מפה בזמן אמת</td><td>Server-Sent Events — ללא ספריות חיצוניות</td></tr>
+  <tr><td>אחסון תמונות</td><td>דחיסה ל-WebP, ניקוי EXIF, דיסק מקומי</td></tr>
+  <tr><td>פאנל ניהול</td><td>סינון, חיפוש, עדכון סטטוס</td></tr>
+  <tr><td>מצב דמו למגייסים</td><td>כניסת אורח לקריאה בלבד</td></tr>
+</table>
+
+<!-- ============ 2 ============ -->
+<h2>2. מה יש בפרויקט — שלושה שירותים</h2>
+
+<div class="diagram">
+  <div class="svc-row">
+    <div class="svc">
+      <div class="t ltr">frontend/</div>
+      <div class="d">React 19 + Vite<br>Leaflet + Router</div>
+      <div class="port ltr">port 5173</div>
+    </div>
+    <div class="arrow">
+      <div class="lbl">HTTP</div>
+      <div class="ln">←&nbsp;→</div>
+      <div class="lbl">SSE</div>
+    </div>
+    <div class="svc" style="border-width:2.5px">
+      <div class="t ltr">backend/</div>
+      <div class="d">Express 5 + TypeScript<br>ארכיטקטורת שכבות</div>
+      <div class="port ltr">port 5000</div>
+    </div>
+    <div class="arrow">
+      <div class="lbl">HTTP</div>
+      <div class="ln">←&nbsp;→</div>
+      <div class="lbl ltr">X-API-Key</div>
+    </div>
+    <div class="svc">
+      <div class="t ltr">ai-service/</div>
+      <div class="d">FastAPI + Gemini</div>
+      <div class="port ltr">port 8001</div>
+    </div>
+  </div>
+  <div class="down" style="margin-top:8px">▼</div>
+  <div style="text-align:center">
+    <span class="svc" style="display:inline-block;flex:none;padding:6px 22px">
+      <span class="t ltr">MongoDB</span>
+    </span>
+  </div>
+</div>
+
+<table>
+  <tr><th style="width:20%">שירות</th><th style="width:14%">גודל</th><th>מה בפנים</th></tr>
+  <tr>
+    <td><code>backend/</code></td><td>~2,400 שורות</td>
+    <td>Node.js, Express 5, TypeScript (ESM), Mongoose. 11 תיקיות בארכיטקטורת שכבות. 35 בדיקות אינטגרציה.</td>
+  </tr>
+  <tr>
+    <td><code>frontend/</code></td><td>2,725 שורות</td>
+    <td>React 19, Vite 7, react-leaflet, Bootstrap, React Router. חמישה מסכים: מפה, התחברות, הרשמה, ההיסטוריה שלי, ניהול.</td>
+  </tr>
+  <tr>
+    <td><code>ai-service/</code></td><td>Python</td>
+    <td>FastAPI + Google Gemini. שני נתיבים מוגנים ב-<code>X-API-Key</code>: <code>/analyze</code> ו-<code>/check-duplicate</code>.</td>
+  </tr>
+</table>
+
+<div class="note">
+  <span class="label">למה שירות AI נפרד ולא בתוך ה-Backend</span>
+  <p>שלוש סיבות שכדאי לומר: המערכת האקולוגית של ML היא פייתון; זה מבודד את התלות — אם שירות ה-AI נופל, המערכת ממשיכה לעבוד; וזה מאפשר להחליף ספק LLM בלי לגעת בלוגיקה העסקית.</p>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="page-break"></div>
+<h2>3. הכלים ולמה נבחרו</h2>
+
+<table>
+  <tr><th style="width:22%">כלי</th><th style="width:26%">תפקיד</th><th>למה הוא ולא אחר</th></tr>
+  <tr><td><strong>TypeScript</strong></td><td>שפה</td><td>מופעל עם <code>strict</code>, <code>exactOptionalPropertyTypes</code>, <code>noUncheckedIndexedAccess</code> — ההגדרות הקפדניות, לא ברירת המחדל</td></tr>
+  <tr><td><strong>Express 5</strong></td><td>שרת HTTP</td><td>מינימלי; השכבות נבנו ידנית ולכן הן מפורשות ולא מוסתרות ע״י framework</td></tr>
+  <tr><td><strong>MongoDB + Mongoose</strong></td><td>מסד נתונים</td><td>השאילתה המרכזית גאוגרפית. אינדקס <code>2dsphere</code> נותן <code>$geoWithin</code> נייטיב. Atlas M0 חינמי ולא נכבה</td></tr>
+  <tr><td><strong>Zod</strong></td><td>ולידציה</td><td><code>z.infer</code> גוזר את הטיפוס מהסכמה — הוולידציה והטיפוס לא יכולים להתפצל</td></tr>
+  <tr><td><strong>JWT + bcrypt</strong></td><td>אימות</td><td>Stateless. סיסמאות מגובבות ב-10 סבבים</td></tr>
+  <tr><td><strong>sharp</strong></td><td>עיבוד תמונה</td><td>הספרייה המהירה ביותר ב-Node. WebP + הסרת EXIF</td></tr>
+  <tr><td><strong>helmet · rate-limit · cors</strong></td><td>אבטחה</td><td>כותרות, הגבלת קצב, בקרת מקורות לפי פרופיל</td></tr>
+  <tr><td><strong>SSE</strong></td><td>זמן אמת</td><td>קל בהרבה מ-socket.io. חד-כיווני מספיק כאן</td></tr>
+  <tr><td><strong>Vitest + mongodb-memory-server</strong></td><td>בדיקות</td><td>DB אמיתי חד-פעמי לכל ריצה, בלי צורך ב-Docker</td></tr>
+  <tr><td><strong>Leaflet + OpenStreetMap</strong></td><td>מפה</td><td>0$, בלי מפתח API ובלי כרטיס אשראי</td></tr>
+</table>
+
+<div class="talk">
+  <span class="label">שאלה שישאלו: ״למה לא Google Maps?״</span>
+  <p>״בדקתי. מאז מרץ 2025 גוגל ביטלה את הקרדיט של 200$ והחליפה אותו במכסות לכל SKU — 10,000 טעינות מפה בחודש חינם ואז כ-7$ לכל 1,000, וחובה חשבון חיוב עם כרטיס אשראי. אפשר להגביל בעזרת Quota יומי, שזו תקרה קשיחה אמיתית — <strong>לא</strong> Budget Alerts, שהם רק התראה ולא מגבילים שימוש. אבל כשהמכסה נגמרת המפה מתה עד חצות. לפרויקט בעלות 5$ לחודש זה לא השתלם.״</p>
+</div>
+
+<div class="talk">
+  <span class="label">שאלה שישאלו: ״למה MongoDB ולא PostgreSQL?״</span>
+  <p>״השאילתה המרכזית שלי גאוגרפית, ו-Mongo נותן אותה נייטיב. PostGIS חזק יותר, אבל על VPS של 5$ שמריץ גם n8n אין זיכרון ל-Postgres מקומי, והחלופות החינמיות המנוהלות נרדמות. Atlas M0 לא נרדם. <strong>והנקודה החשובה</strong> — הסטנדרט ההנדסי הוא ההפרדה לשכבות, לא מנוע האחסון. בפרויקט הקודם שלי החלפתי MongoDB ב-PostgreSQL באמצע, ורק שתי שכבות השתנו. זה בדיוק המבחן שהארכיטקטורה הזו נועדה לעבור.״</p>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="page-break"></div>
+<h2>4. הארכיטקטורה — שני צירים</h2>
+
+<p>זו הנקודה שהכי חשוב להעביר נכון. יש <strong>מחסנית אנכית</strong> של שכבות, ויש <strong>צינור אופקי</strong> של middleware שרץ לפניה. הם לא אותו דבר.</p>
+
+<div class="diagram">
+  <div class="stack">
+    <div class="band">
+      <div class="t ltr">middleware/</div>
+      <div class="d">צינור אופקי — רץ על כל בקשה, לא יודע כלום על מפגעים או על משתמשים</div>
+    </div>
+    <div class="down">▼</div>
+
+    <div class="layer"><span class="nm">routes/</span><span class="ds">מיפוי URL</span></div>
+    <div class="down">↓</div>
+    <div class="layer"><span class="nm">controllers/</span><span class="ds">תרגום HTTP</span></div>
+    <div class="down">↓</div>
+    <div class="layer core"><span class="nm">logic/</span><span class="ds">★ הליבה — כל הכללים ★</span></div>
+    <div class="down">↓</div>
+    <div class="layer"><span class="nm">repositories/</span><span class="ds">שאילתות</span></div>
+    <div class="down">↓</div>
+    <div class="layer"><span class="nm">data/</span><span class="ds">MongoDB</span></div>
+
+    <div class="down">▲</div>
+    <div class="band cross">
+      <div class="t ltr">boundaries/ · converters/ · errors/ · config/</div>
+      <div class="d">רוחביים — משרתים את כל השכבות</div>
+    </div>
+  </div>
+  <p class="muted" style="text-align:center;margin:12px 0 0">
+    האמצע הוא <strong>מחסנית אנכית</strong>: כל שכבה מדברת רק עם זו שמתחתיה.
+    למעלה ולמטה — <strong>צירים אופקיים</strong> שחוצים את כולן.
+  </p>
+</div>
+
+<h3>חוק הזהב</h3>
+<div class="fix">
+  <span class="label">חץ אחד למטה</span>
+  <p><code>data/</code> לא יודע שקיים <code>logic/</code>. <code>logic/</code> לא יודע שקיים HTTP. <code>controllers/</code> מכיר רק <strong>ממשקים</strong> מ-<code>logic/</code>, לא מימושים.</p>
+  <p>התוצאה המעשית: אפשר לבדוק את הלוגיקה העסקית בלי להרים שרת, ואפשר להחליף את Gemini ב-Groq בלי לגעת בה.</p>
+</div>
+
+<h3>ממשק מול מימוש</h3>
+<p>לכל שירות יש שני קבצים, וזה מבלבל בהתחלה:</p>
+<table>
+  <tr><th style="width:42%">קובץ</th><th>מה יש בו</th></tr>
+  <tr><td><code>logic/ai.service.ts</code></td><td><strong>מה</strong> אפשר לעשות — רשימת פונקציות בלי גוף</td></tr>
+  <tr><td><code>logic/impl/gemini.ai.service.impl.ts</code></td><td><strong>איך</strong> — הקוד שבאמת רץ</td></tr>
+</table>
+<p><code>hazards.service.impl.ts</code> מכיר רק את הראשון. לכן החלפת ספק ה-LLM היא קובץ חדש ושורה אחת ב-<code>container.ts</code>.</p>
+
+<!-- ============ 5 ============ -->
+<h2>5. צינור ה-Middleware</h2>
+
+<p>ב-Spring Boot רוב הדברים האלה הם אנוטציות שה-framework מספק. ב-Express הם קוד מפורש שכתבתי — וזה בעצם יתרון הסברתי: רואים בדיוק מה קורה.</p>
+
+<table>
+  <tr><th style="width:30%">ב-CityScan (קוד)</th><th>ב-Spring Boot (אנוטציה)</th></tr>
+  <tr><td><code>errorHandler.ts</code></td><td><code>@ControllerAdvice</code></td></tr>
+  <tr><td><code>requireRole.ts</code></td><td><code>@PreAuthorize</code></td></tr>
+  <tr><td><code>validate.ts</code></td><td><code>@Valid</code> + <code>jakarta.validation</code></td></tr>
+  <tr><td><code>auth.middleware.ts</code></td><td>Spring Security Filter Chain</td></tr>
+  <tr><td><code>rateLimiter.ts</code></td><td>— (אין מקבילה מובנית)</td></tr>
+</table>
+
+<div class="note">
+  <span class="label">למה זה לא ״שכבה״</span>
+  <p>שכבה עוסקת בדומיין — מפגעים, משתמשים. Middleware הוא <em>חוצה-דומיין</em>: אותו קוד אימות רץ על מפגעים, על משתמשים ועל לוגים, ולא יודע במה הוא מטפל. לכן הוא ציר אחר.</p>
+</div>
+
+<!-- ============ 6 ============ -->
+<div class="page-break"></div>
+<h2>6. הזרימה המלאה — מסלול של דיווח אחד</h2>
+
+<p>מה שקורה כשמשתמש לוחץ ״שלח דיווח״, מקצה לקצה:</p>
+
+<div class="diagram">
+  <div class="flow">
+    <div class="s gate"><span class="n">1</span><span class="nm">cors</span><span class="ds">מקור מותר? בפרודקשן חובה <code>FRONTEND_URL</code></span></div>
+    <div class="s gate"><span class="n">2</span><span class="nm">helmet</span><span class="ds">כותרות אבטחה</span></div>
+    <div class="s gate"><span class="n">3</span><span class="nm">express.json</span><span class="ds">פענוח גוף, מקסימום 8mb</span></div>
+    <div class="s gate"><span class="n">4</span><span class="nm">rateLimiter</span><span class="ds">לא חרגת ממכסה? (נתיב ה-SSE פטור)</span></div>
+    <div class="s gate"><span class="n">5</span><span class="nm">optionalAuth</span><span class="ds">יש טוקן? → <code>req.user</code></span></div>
+    <div class="s gate"><span class="n">6</span><span class="nm">demoRestrict</span><span class="ds">אדמין-דמו? → חסום כתיבה</span></div>
+
+    <div class="sep">— עד כאן גלובלי על כל בקשה. מכאן לפי נתיב —</div>
+
+    <div class="s gate"><span class="n">7</span><span class="nm">authMiddleware</span><span class="ds">חייב טוקן, אחרת 401</span></div>
+    <div class="s gate"><span class="n">8</span><span class="nm">validate(schema)</span><span class="ds">Zod. נכשל → זורק <code>BadRequestException</code></span></div>
+
+    <div class="sep">═══ נכנסים לשכבות ═══</div>
+
+    <div class="s layer-step"><span class="n">9</span><span class="nm">HazardController.create</span><span class="ds">3 שורות: קורא, מאציל, שולח</span></div>
+    <div class="s layer-step"><span class="n">10</span><span class="nm">HazardsServiceImpl.create</span><span class="ds"><strong>★ כל הכללים ★</strong></span></div>
+    <div class="sub">
+      <div>← <span class="k">repository.findNearbyUnresolved()</span> — <code>$geoWithin</code>, רדיוס 50 מ׳</div>
+      <div>← אותו סוג ברדיוס? זורק <span class="k">ConflictException</span> (409)</div>
+      <div>← סוג אחר? <span class="k">ai.checkDuplicate()</span> — נופל בחן אם השירות מת</div>
+      <div>← <span class="k">photos.saveMany()</span> — WebP, ניקוי EXIF, URL בלבד</div>
+      <div>← <span class="k">repository.create()</span> → <span class="k">data/</span> → MongoDB</div>
+      <div>← <span class="k">events.emit()</span> — SSE לכל הדפדפנים המחוברים</div>
+    </div>
+    <div class="s layer-step"><span class="n">11</span><span class="nm">converter.toBoundary()</span><span class="ds">entity → JSON נקי</span></div>
+    <div class="s layer-step"><span class="n">12</span><span class="nm">res.status(201).json()</span><span class="ds">התשובה ללקוח</span></div>
+  </div>
+</div>
+
+<h3>ומה קורה כשמשהו נכשל</h3>
+<div class="diagram">
+  <div class="stack" style="max-width:420px">
+    <div class="layer"><span class="nm">HazardsServiceImpl</span><span class="ds">זורק <code>ConflictException</code></span></div>
+    <div class="down">↓ <span class="muted" style="font-size:8pt"><code>asyncHandler</code> תופס את ה-rejection</span></div>
+    <div class="layer core"><span class="nm">errorHandler</span><span class="ds">קופצים ישר לסוף הצינור</span></div>
+    <div class="down">↓</div>
+    <div class="layer" style="background:#f8fafb">
+      <span class="nm" style="font-size:8.2pt">{ message, status: 409,<br>&nbsp;&nbsp;code: "DUPLICATE_HAZARD",<br>&nbsp;&nbsp;timestamp, path }</span>
+    </div>
+  </div>
+</div>
+
+<div class="fix">
+  <span class="label">העיקרון</span>
+  <p><strong>אף מקום בפרויקט חוץ מ-<code>errorHandler.ts</code> לא כותב תשובת שגיאה.</strong> השירות זורק חריגה טיפוסית שנושאת את קוד ה-HTTP שלה; הוא לא בוחר סטטוס ולא בונה JSON.</p>
+</div>
+
+<h3>מניעת כפילויות — שתי רמות</h3>
+<p>זה הפיצ׳ר שהכי שווה להסביר לעומק:</p>
+<ol>
+  <li><strong>רמה דטרמיניסטית:</strong> מפגע לא פתור מ<em>אותו סוג</em> בתוך 50 מ׳ הוא כפילות. בלי AI, בלי השהיה, עובד אופליין.</li>
+  <li><strong>רמה מעורפלת:</strong> רק כשיש מפגעים בסביבה מ<em>סוג אחר</em>. ״פסולת״ ו״הצפה״ במרחק חמישה מטרים <em>יכולים</em> להיות אותה בעיה פיזית — וזו שאלה שדורשת שיפוט. היא הולכת ל-LLM.</li>
+</ol>
+<div class="warn">
+  <span class="label">Fail-open — החלטת תכנון מודעת</span>
+  <p>אם שירות ה-AI לא זמין, הדיווח <strong>עובר</strong>. תושב חייב תמיד להיות מסוגל לדווח על מפגע, גם כשתלות אופציונלית נופלת. זו גם הסיבה שבדיקת הכפילויות לא הועברה ל-n8n — היא על הנתיב הקריטי, המשתמש ממתין לתשובה, וזו לוגיקה עסקית ליבתית שצריכה להיות ב-git ומכוסה בבדיקות.</p>
+</div>
+
+<!-- ============ 7 ============ -->
+<div class="page-break"></div>
+<h2>7. כל תיקייה, מה היא עושה</h2>
+
+<table>
+  <tr><th style="width:19%">תיקייה</th><th style="width:40%">תפקיד</th><th>מותר לה להכיר</th></tr>
+  <tr><td><code>middleware/</code></td><td>חוצה-הכל: אבטחה, אימות, ולידציה, שגיאות</td><td><code>logic/</code> (ממשקים), <code>errors/</code></td></tr>
+  <tr><td><code>routes/</code></td><td>URL → controller, ושרשור השומרים</td><td><code>controllers/</code>, <code>boundaries/</code></td></tr>
+  <tr><td><code>controllers/</code></td><td>תרגום HTTP בלבד. בלי <code>try/catch</code></td><td><code>logic/</code> — <strong>ממשקים בלבד</strong></td></tr>
+  <tr><td><code>logic/</code></td><td><strong>מה</strong> אפשר לעשות — ממשקים בלי גוף</td><td><code>boundaries/</code></td></tr>
+  <tr><td><code>logic/impl/</code></td><td><strong>איך</strong> — כל הלוגיקה העסקית</td><td><code>repositories/</code>, <code>converters/</code>, <code>errors/</code></td></tr>
+  <tr><td><code>repositories/</code></td><td>שאילתות Mongo. הגאוגרפיה חיה כאן</td><td><code>data/</code></td></tr>
+  <tr><td><code>data/</code></td><td>סכמות Mongoose + enums</td><td>כלום</td></tr>
+  <tr><td><code>boundaries/</code></td><td>חוזה ה-JSON + סכמות Zod, באותו קובץ</td><td><code>data/enums</code></td></tr>
+  <tr><td><code>converters/</code></td><td>entity ⇄ boundary. מוריד סיסמאות</td><td>שניהם</td></tr>
+  <tr><td><code>errors/</code></td><td>חריגות שנושאות קוד HTTP</td><td>כלום</td></tr>
+  <tr><td><code>config/</code></td><td>פרופילים, env מאומת, חיבור DB</td><td>כלום</td></tr>
+  <tr><td><code>container.ts</code></td><td>מחבר הכל — ההזרקה של Spring, ידנית</td><td>הכל</td></tr>
+</table>
+
+<!-- ============ 8 ============ -->
+<h2>8. שלוש השכבות שהכי מבלבלות</h2>
+
+<p>אותו מפגע, בשלוש צורות שונות:</p>
+
+<div class="diagram">
+  <div class="three-col">
+    <div class="col" style="border:1.5px solid #c7d3e0;border-radius:5px;background:#fff">
+      <h5 class="ltr">data/</h5>
+      <div class="sub2">איך זה מאוחסן — MongoDB</div>
+      <ul>
+        <li>_id: ObjectId("64f…")</li>
+        <li>latitude: 32.08</li>
+        <li class="gone">location: { type: "Point",<br>&nbsp;&nbsp;coordinates: […] }</li>
+        <li>reportedBy: ObjectId("507…")</li>
+        <li>createdAt: Date</li>
+        <li class="gone">__v: 0</li>
+      </ul>
+    </div>
+    <div class="mid">
+      <div class="op"><span style="font-size:12pt;color:#1f6feb">←</span><br><strong>converters/</strong><br>המתרגם</div>
+    </div>
+    <div class="col" style="border:1.5px solid #1f6feb;border-radius:5px;background:#f8fbff">
+      <h5 class="ltr">boundaries/</h5>
+      <div class="sub2">איך זה נשלח — JSON ללקוח</div>
+      <ul>
+        <li class="kept">_id: "64f…"</li>
+        <li>latitude: 32.08</li>
+        <li style="color:#a0a8b0">— לא קיים —</li>
+        <li class="kept">reportedBy: { _id, email }</li>
+        <li class="kept">createdAt: "2026-08-07T…"</li>
+        <li style="color:#a0a8b0">— לא קיים —</li>
+      </ul>
+    </div>
+  </div>
+  <p class="muted" style="text-align:center;margin:10px 0 0">
+    <span style="color:#c92a2a">אדום</span> = פנימי, לא עובר ללקוח ·
+    <span style="color:#2b8a3e">ירוק</span> = הומר לצורה שהלקוח מצפה לה
+  </p>
+</div>
+
+<h4><code>data/</code> — הצורה שנשמרת</h4>
+<p>סכמות Mongoose. השדה <code>location</code> קיים <strong>רק</strong> בשביל האינדקס <code>2dsphere</code> — הוא כפילות של <code>latitude</code>/<code>longitude</code>, ו-hook שומר אותו מסונכרן. הלקוח לא רואה אותו לעולם. גם ה-enums יושבים כאן, ומהם קוראות גם סכמת Mongoose וגם סכמת Zod — סוג מפגע חדש מתווסף במקום אחד.</p>
+
+<h4><code>boundaries/</code> — החוזה כלפי חוץ</h4>
+<p>שני דברים באותו קובץ: טיפוס התשובה, שחייב להיות זהה שדה-בשדה ל-<code>interface Hazard</code> בצד הלקוח; וסכמת Zod שבודקת את הבקשה.</p>
+<pre><code>export const createHazardSchema = z.object({
+  type: z.enum(HAZARD_TYPES),
+  latitude,        // coerce למספר, בין -90 ל-90
+  longitude,
+  hazardPhotos: z.array(photoPayload).max(10).optional(),
+});
+
+export type CreateHazardBoundary = z.infer&lt;typeof createHazardSchema&gt;;</code></pre>
+<p>השורה האחרונה היא הרעיון: <strong>הטיפוס נגזר מהסכמה</strong>, ולכן אי אפשר שהוולידציה תבדוק דבר אחד וה-TypeScript יאמין לדבר אחר.</p>
+
+<h4><code>converters/</code> — המתרגם</h4>
+<p>הקובץ הכי חשוב ביטחונית הוא <code>user.converter.ts</code>, כי הוא בונה את התשובה שדה-בשדה — ול-<code>UserBoundary</code> בכלל אין שדה <code>password</code>, אז הסיסמה פיזית לא יכולה לדלוף.</p>
+<table>
+  <tr><th style="width:50%">הקוד הישן (3 מופעים)</th><th>הקוד החדש</th></tr>
+  <tr>
+    <td><code>const o = user.toObject();<br>delete o.password;</code><br><span class="muted">דולף כברירת מחדל — שדה חדש בסכמה נשלח ללקוח עד שמישהו יזכור למחוק</span></td>
+    <td><code>toBoundary(entity) {<br>&nbsp;&nbsp;return { _id, email, role, ... }<br>}</code><br><span class="muted">חוסם כברירת מחדל — שדה חדש נשלח רק אם כתבת אותו במפורש</span></td>
+  </tr>
+</table>
+
+<!-- ============ 9 ============ -->
+<div class="page-break"></div>
+<h2>9. מה שונה מ-SmartCollect ולמה</h2>
+
+<p>המבנה מועתק אחד-לאחד מהפרויקט הקודם, כולל מוסכמות השמות ואפילו האי-סימטריה שבהן: שירותים ברבים (<code>HazardsService</code>), קונטרולרים וישויות ביחיד (<code>HazardController</code>, <code>HazardEntity</code>).</p>
+
+<h3>מה נלקח</h3>
+<table>
+  <tr><th style="width:46%">SmartCollect (Spring Boot)</th><th>CityScan (Express)</th></tr>
+  <tr><td><code>controllers/</code> רזים, בלי <code>try/catch</code></td><td>זהה</td></tr>
+  <tr><td><code>logic/</code> + <code>logic/impl/</code></td><td>זהה</td></tr>
+  <tr><td><code>repositories/</code> (Spring Data)</td><td>מחלקות מעל Mongoose</td></tr>
+  <tr><td><code>data/</code> (<code>@Entity</code>)</td><td><code>data/</code> (Mongoose Schema)</td></tr>
+  <tr><td><code>boundaries/</code> (DTOs)</td><td>זהה — פלוס סכמת Zod</td></tr>
+  <tr><td><code>converters/</code></td><td>זהה</td></tr>
+  <tr><td><code>errors/</code> עם <code>@ResponseStatus</code></td><td><code>errors/</code> עם <code>AppException.status</code></td></tr>
+  <tr><td><code>@Profile</code> + <code>application-{profile}.properties</code></td><td><code>NODE_ENV</code> + <code>.env.{profile}</code></td></tr>
+  <tr><td>Testcontainers — DB נקי לכל ריצה</td><td><code>mongodb-memory-server</code></td></tr>
+</table>
+
+<h3>מה תוקן במכוון</h3>
+<p>המדריך של SmartCollect מפרט בעצמו את חולשותיו. אלה תוקנו כאן במקום להיות מועתקות — <strong>וזו נקודה חזקה בראיון</strong>: לא רק שחזרת סטנדרט, זיהית איפה הוא נשבר.</p>
+<table>
+  <tr><th style="width:50%">חולשה ב-SmartCollect</th><th>ב-CityScan</th></tr>
+  <tr><td>סיסמאות בטקסט גלוי</td><td>bcrypt, 10 סבבים</td></tr>
+  <tr><td>סיסמה כפרמטר ב-URL (״נכנסים ללוגים״)</td><td>JWT ב-<code>Authorization: Bearer</code></td></tr>
+  <tr><td>קריאות <code>require...</code> ידניות בכל מתודה</td><td><code>requireRole</code> כ-middleware על הנתיב</td></tr>
+  <tr><td>אין <code>@ControllerAdvice</code>, וגוף השגיאה לא מוגדר — ההודעות לא מגיעות ללקוח</td><td>handler מרכזי עם חוזה מפורש</td></tr>
+  <tr><td>מעבר בין סביבות ע״י הסרת הערות מקוד</td><td>קבצי פרופיל אמיתיים</td></tr>
+  <tr><td><code>compose.yaml</code> בלי volume — <code>down</code> מוחק את ה-DB</td><td>named volume, image מקובע, healthcheck</td></tr>
+</table>
+
+<div class="note">
+  <span class="label">Docker — הבדל תפקידי חשוב</span>
+  <p>ב-SmartCollect אין <code>Dockerfile</code> בכלל: Docker היה רק נוחות פיתוח שהחזיקה את ה-PostgreSQL, והאפליקציה תמיד רצה על המחשב. ספרינג אפילו הרים את הקונטיינר לבד — ולכן <em>חובה</em> היה להפעיל Docker Desktop לפני ההרצה.</p>
+  <p>ב-CityScan Docker הוא <strong>אופציונלי בפיתוח</strong> (אפשר להצביע ל-Atlas ולדלג עליו), ובשלב 3 הוא הופך לסביבת <strong>הייצור</strong> עצמה.</p>
+</div>
+
+<!-- ============ 10 ============ -->
+<div class="page-break"></div>
+<h2>10. השינויים — לפני ואחרי</h2>
+
+<table>
+  <tr><th style="width:34%">היבט</th><th style="width:33%">לפני</th><th>אחרי</th></tr>
+  <tr><td>שכבות</td><td>תיקיות קיימות, אבל <code>controllers/hazards.ts</code> = 500 שורות עם הכל</td><td>4 שכבות אמיתיות; קונטרולר = 3 שורות לכל handler</td></tr>
+  <tr><td>טעינת env</td><td>לא נטענת בכלל (ראה סעיף 11)</td><td><code>config/env.ts</code> מאומת ב-Zod</td></tr>
+  <tr><td>שגיאות</td><td>handler גלובלי שהוא קוד מת</td><td>מקום אחד שכותב שגיאה, חוזה מוגדר</td></tr>
+  <tr><td>ולידציה</td><td><code>validate.ts</code> = <code>next()</code> ריק</td><td>Zod על כל נתיב</td></tr>
+  <tr><td>הרשאות</td><td>4 בלוקים משוכפלים בתוך הקונטרולר</td><td><code>requireRole()</code> על הנתיב</td></tr>
+  <tr><td>תמונות</td><td>base64 בתוך המסמך, עד 10×1.5MB</td><td>WebP על דיסק, ~150KB, URL בלבד ב-DB</td></tr>
+  <tr><td>עדכון מפה</td><td>Polling כל 8 שניות, 500 מפגעים</td><td>SSE — דחיפה כשמשהו קורה</td></tr>
+  <tr><td>בדיקות</td><td>אין</td><td>35 בדיקות אינטגרציה</td></tr>
+  <tr><td>פגיעויות</td><td>7 (אחת קריטית)</td><td>0</td></tr>
+</table>
+
+<div class="talk">
+  <span class="label">המספר שכדאי לזכור</span>
+  <p>הפוליטציה כל 8 שניות ייצרה <strong>~450 בקשות בשעה לכל לקוח פתוח</strong>, כל אחת מחזירה עד 500 מפגעים עם תמונות base64. המעבר ל-SSE הוא חיבור אחד שקט. זה שיפור שהוא גם ביצועים, גם עלות רוחב-פס וגם סוללה בנייד.</p>
+</div>
+
+<!-- ============ 11 ============ -->
+<h2>11. שלושת הבאגים שנמצאו ותוקנו</h2>
+
+<p>אלה החומר החזק ביותר לראיון, כי הם מדגימים אבחון ולא רק כתיבה.</p>
+
+<h3>באג 1 — משתני הסביבה לא נטענו כלל</h3>
+<div class="bug">
+  <span class="label">התסמין</span>
+  <p>ה-JWT תמיד נחתם עם סוד ברירת מחדל קשיח, ו-<code>AI_SERVICE_URL</code> תמיד היה <code>undefined</code> — כלומר <strong>כל מנגנון ה-AI היה מושבת בשקט</strong> והחזיר תמיד ״לא כפילות״.</p>
+</div>
+<div class="fix">
+  <span class="label">הסיבה — והיא מעניינת</span>
+  <p><code>app.ts</code> קרא ל-<code>dotenv.config()</code> בשורה 12. אבל ב-ESM <strong>כל ה-<code>import</code> מתבצעים לפני גוף המודול</strong>. <code>services/jwt.ts</code> קרא את <code>process.env.JWT_SECRET</code> ברמת המודול — כלומר לפני ש-dotenv רץ.</p>
+  <p><strong>התיקון:</strong> <code>server.ts</code> מייבא <code>loadEnv</code> ראשון, ואף מודול לא קורא <code>process.env</code> בזמן import. יש בדיקת רגרסיה שמאמתת שהטוקן <em>לא</em> מתאמת מול הסוד הישן.</p>
+</div>
+
+<h3>באג 2 — ה-Error Middleware היה קוד מת</h3>
+<div class="bug">
+  <span class="label">התסמין</span>
+  <p>היה handler גלובלי ב-<code>app.ts</code>, אבל הוא מעולם לא נקרא.</p>
+</div>
+<div class="fix">
+  <span class="label">הסיבה</span>
+  <p>כל controller עטף את עצמו ב-<code>try/catch</code> והחזיר <code>res.status(500)</code> בעצמו, ולכן <code>next(err)</code> לא נקרא אף פעם. <strong>התיקון:</strong> מחיקת כל ה-<code>try/catch</code> והוספת <code>asyncHandler</code>.</p>
+</div>
+
+<h3>באג 3 — הגבלת מצב הדמו מעולם לא נתפסה</h3>
+<div class="bug">
+  <span class="label">התסמין</span>
+  <p>אדמין-דמו יכול היה למחוק נתונים אמיתיים, למרות שנכתב קוד שאמור למנוע זאת.</p>
+</div>
+<div class="fix">
+  <span class="label">הסיבה</span>
+  <p><code>demoRestrict.ts</code> השווה מול <code>'admin-demo@cityscan.demo'</code> בעוד <code>auth.ts</code> יצר את החשבון בתור <code>'guest_admin@cityscan.com'</code>. שתי כתובות שונות — התנאי תמיד יצא ״לא דמו״ והכל עבר.</p>
+  <p><strong>התיקון:</strong> שניהם קוראים מ-<code>config.demo.adminEmail</code>. <em>זה בדיוק העיקרון שזהות מגיעה מקונפיגורציה ולא מליטרל שמשוכפל בין קבצים</em> — הלקח מ-<code>@Value("${spring.application.name}")</code>.</p>
+</div>
+
+<div class="warn">
+  <span class="label">נמצא ועדיין לא תוקן — מיועד לשלב 2</span>
+  <p><strong>XSS מאוחסן</strong> ב-<code>MapComponent.tsx</code>: ה-popup נבנה עם <code>innerHTML</code> ומזריק לתוכו את תיאור המפגע — טקסט חופשי שמגיע ממשתמש, בלי escaping.</p>
+</div>
+
+<!-- ============ 12 ============ -->
+<div class="page-break"></div>
+<h2>12. בדיקות</h2>
+
+<p>35 בדיקות אינטגרציה, שרצות מול MongoDB אמיתי חד-פעמי שעולה לכל ריצה. אותו עיקרון של Testcontainers ב-SmartCollect — סביבה נקייה ומבודדת שלא תלויה במחשב המפתח — בלי לדרוש התקנת Docker.</p>
+
+<table>
+  <tr><th style="width:26%">קובץ</th><th>מה מכוסה</th></tr>
+  <tr><td><code>hazards.test.ts</code></td><td>חוזה ה-JSON, כפילות ברדיוס, fail-open של ה-AI, דחיסת תמונות, מחיקת קבצים, הרשאות, חוזה השגיאות</td></tr>
+  <tr><td><code>auth.test.ts</code></td><td>הרשמה, התחברות, רגרסיית ה-JWT, מניעת account enumeration, הגבלת הדמו</td></tr>
+  <tr><td><code>sse.test.ts</code></td><td>זרם אירועים חי מקצה לקצה</td></tr>
+</table>
+
+<div class="talk">
+  <span class="label">בדיקה ששווה להראות</span>
+  <p>הבדיקה שמאמתת ששני מיילים שגויים — אחד לא קיים ואחד עם סיסמה שגויה — מחזירים <strong>בדיוק אותה הודעה</strong>. אחרת נקודת הקצה הופכת ל-oracle שמאפשר לגלות אילו כתובות רשומות במערכת.</p>
+</div>
+
+<!-- ============ 13 ============ -->
+<h2>13. שיקולי עלות (FinOps)</h2>
+
+<table>
+  <tr><th style="width:34%">רכיב</th><th style="width:16%">עלות</th><th>הבחירה</th></tr>
+  <tr><td>מסד נתונים</td><td>0$</td><td>MongoDB Atlas M0 — חינמי ולא נרדם</td></tr>
+  <tr><td>מפה</td><td>0$</td><td>Leaflet + OSM, בלי מפתח ובלי כרטיס אשראי</td></tr>
+  <tr><td>אחסון תמונות</td><td>0$</td><td>דיסק ה-VPS. דחיסה הופכת את זה לבר-קיימא</td></tr>
+  <tr><td>LLM</td><td>0$</td><td>מסלול חינמי של Gemini</td></tr>
+  <tr><td>דומיין + SSL</td><td>0$</td><td>DuckDNS + Let's Encrypt</td></tr>
+  <tr><td><strong>שרת VPS</strong></td><td><strong>5$/חודש</strong></td><td>ההוצאה החוזרת <strong>היחידה</strong> בכל הארכיטקטורה</td></tr>
+</table>
+
+<div class="note">
+  <span class="label">החישוב שמאחורי דחיסת התמונות</span>
+  <p>תמונה מהטלפון היא ~1.5MB ב-base64. אחסון בתוך מסמך MongoDB היה מתקרב לתקרת 16MB למסמך, וממלא Atlas M0 (512MB) אחרי כ-100 דיווחים בלבד. אחרי <code>sharp</code> — שינוי גודל ל-1600px והמרה ל-WebP — התמונה יורדת ל-~150KB, ודיסק של 25GB מחזיק בסדר גודל של 100,000 תמונות.</p>
+  <p>ניקוי ה-EXIF הוא לא רק חיסכון: תמונות מטלפון נושאות קואורדינטות GPS מוטמעות, והתמונות האלה מוצגות בפומבי על מפה. הדיווח כבר נושא מיקום מפורש — אין סיבה לפרסם גם את המקום המדויק שבו המדווח עמד.</p>
+</div>
+
+<!-- ============ 14 ============ -->
+<h2>14. מה הלאה</h2>
+
+<h3>שלב 2 — אופטימיזציית ה-Frontend</h3>
+<ul>
+  <li>תיקון ה-XSS ב-<code>MapComponent.tsx</code> — עדיפות ראשונה</li>
+  <li>מחיקת הפוליטציה והחלפתה ב-<code>EventSource</code> על ה-SSE שכבר נבנה</li>
+  <li>מיטוב רינדורים עם <code>useCallback</code> על ה-handlers</li>
+  <li>אירוח עצמי של אייקוני המפה — כרגע נטענים מ-GitHub ומ-cdnjs, תלות בצד שלישי</li>
+  <li>Clustering לסמנים, ובסיס-מפה נקי יותר (CARTO Voyager) — שיפור חינמי</li>
+</ul>
+
+<h3>שלב 3 — פריסה לשרת פרטי</h3>
+<ul>
+  <li><code>Dockerfile</code> ל-Backend + <code>docker-compose.yml</code> לייצור</li>
+  <li>n8n לאוטומציות רקע — תזכורות על מפגעים ישנים, סיכומים שבועיים, תיוג חומרה</li>
+  <li>DuckDNS + Nginx Proxy Manager ל-HTTPS אוטומטי</li>
+</ul>
+
+<div class="note">
+  <span class="label">נקודת החיבור ל-n8n כבר קיימת</span>
+  <p><code>EventsService</code> הוא מנגנון פרסום. אותו אירוע שמזין את ה-SSE יכול להזין גם webhook יוצא ל-n8n — מנוי שני על אותו בוס, בלי ארכיטקטורה נוספת. השרת פולט פעם אחת, שני צרכנים.</p>
+  <p><strong>שים לב:</strong> Nginx Proxy Manager מבצע buffering כברירת מחדל, ולכן הנתיב של ה-SSE יצטרך <code>proxy_buffering off</code> — אחרת האירועים יישבו בבאפר ולא יגיעו.</p>
+</div>
+
+<!-- ============ 15 ============ -->
+<div class="page-break"></div>
+<h2>15. איך להסביר את זה לאנשים</h2>
+
+<h3>מבנה של 90 שניות</h3>
+<ol>
+  <li><strong>מה זה</strong> — ״מערכת דיווח מפגעים עירוניים. תושב לוחץ על מפה, מצלם, מדווח.״</li>
+  <li><strong>הארכיטקטורה</strong> — ״שלושה שירותים: React, API ב-Node/TypeScript, ושירות AI בפייתון. ה-API בנוי בארכיטקטורת שכבות קפדנית.״</li>
+  <li><strong>מה מעניין טכנית</strong> — ״מניעת כפילויות בשתי רמות: שאילתה גאוגרפית לוודאי, LLM למעורפל.״</li>
+  <li><strong>מה למדתי</strong> — הבאגים. זה החלק שמבדיל אותך.</li>
+</ol>
+
+<h3>שאלות שישאלו, ותשובות</h3>
+
+<div class="talk">
+  <span class="label">״למה כל כך הרבה תיקיות לפרויקט קטן?״</span>
+  <p>״כי הקונטרולר היה 500 שורות שהחזיקו שאילתות, מתמטיקה גאוגרפית, קריאות AI ובדיקות הרשאה. אי אפשר היה לבדוק שום דבר מזה בלי להרים שרת. עכשיו הלוגיקה העסקית נבדקת בלי HTTP בכלל. המבחן שאני מציע: להחליף את ספק ה-LLM זה קובץ חדש ושורה אחת ב-<code>container.ts</code>.״</p>
+</div>
+
+<div class="talk">
+  <span class="label">״מה זה ה-boundaries האלה? זה לא סתם כפילות?״</span>
+  <p>״זו הפרדה בין איך שהנתונים נשמרים לאיך שהם נשלחים. הדוגמה הכי טובה היא המשתמש: ל-<code>UserBoundary</code> פשוט <em>אין</em> שדה סיסמה, אז היא לא יכולה לדלוף. הקוד הישן עשה <code>delete o.password</code> בשלושה מקומות — וזה דולף כברירת מחדל, כי שדה חדש בסכמה נשלח עד שמישהו יזכור למחוק אותו.״</p>
+</div>
+
+<div class="talk">
+  <span class="label">״למה SSE ולא WebSocket?״</span>
+  <p>״הזרימה חד-כיוונית — השרת מודיע ללקוח שנוסף מפגע. WebSocket דו-כיווני, כבד יותר בזיכרון, ודורש ספרייה. SSE זה HTTP רגיל, עובד דרך כל פרוקסי, ומתחבר מחדש לבד. על VPS של 5$ עם זיכרון מוגבל זה משנה.״</p>
+</div>
+
+<div class="talk">
+  <span class="label">״איך אתה יודע שזה עובד?״</span>
+  <p>״35 בדיקות אינטגרציה מול מסד נתונים אמיתי שעולה נקי בכל ריצה. הן מכסות את חוזה ה-JSON מול ה-Frontend, את קודי השגיאה, את ההרשאות — ויש בדיקת רגרסיה ספציפית לבאג טעינת ה-env, שמאמתת שהטוקן לא נחתם עם הסוד הישן.״</p>
+</div>
+
+<div class="talk">
+  <span class="label">אם ישאלו על חולשות — אל תתחמק</span>
+  <p>יש XSS פתוח ב-Frontend שזוהה ומתוזמן לשלב 2. ה-SSE עובד בהנחת instance יחיד; ריבוי instances היה דורש Redis pub/sub. אין עדיין pagination אמיתי — יש תקרה של 500. <strong>לומר את זה בעצמך זה סימן לבגרות הנדסית, לא לחולשה.</strong></p>
+</div>
+
+<h3>שלוש נקודות שכדאי להשאיר אצל המאזין</h3>
+<ol>
+  <li>באג <code>dotenv</code> ב-ESM — מדגים הבנה של סדר טעינת מודולים, לא רק שימוש בספרייה.</li>
+  <li>Fail-open ב-AI — מדגים חשיבה על מצבי כשל, לא רק על המסלול המוצלח.</li>
+  <li>ניקוי EXIF — מדגים מודעות לפרטיות שאיש לא ביקש.</li>
+</ol>
+
+<footer class="sig">
+  CityScan — מדריך ארכיטקטורה · נוצר אוגוסט 2026 · המקור:
+  <span class="ltr">docs/cityscan-guide.html</span>
+</footer>
+
+</body>
+</html>
