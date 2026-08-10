@@ -8,6 +8,7 @@
     "start": "cross-env NODE_ENV=production node dist/server.js",
     "dev": "cross-env NODE_ENV=development nodemon --watch src --ext ts --exec tsx src/server.ts",
     "clear-reports": "cross-env NODE_ENV=development tsx src/scripts/clearReports.ts",
+    "seed:demo": "cross-env NODE_ENV=development tsx src/scripts/seedDemo.ts",
     "db:up": "docker compose -f ../docker-compose.dev.yml up -d",
     "db:down": "docker compose -f ../docker-compose.dev.yml down",
     "test": "vitest run",
