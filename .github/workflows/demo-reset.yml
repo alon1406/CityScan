@@ -1,0 +1,78 @@
+name: Nightly demo reset
+
+# Returns the public demo to its seeded state.
+#
+# Visitors can file reports, change statuses and delete hazards, and uploaded photos
+# accumulate on a small disk. Without this the map drifts into whatever the last
+# visitor left behind.
+#
+# Runs here rather than in n8n because the demo host is an Azure B1s with 1 GB of RAM.
+# n8n alone wants ~400 MB, which would not leave room for the backend, the AI service
+# and the proxy. GitHub Actions costs nothing on a public repository and the backend
+# endpoint is identical either way — see docs/demo-reset-schedule.md.
+
+on:
+  schedule:
+    # 01:00 UTC. GitHub cron is always UTC, so this is 04:00 in Israel during summer
+    # time and 03:00 in winter — a quiet hour either way, which is the point: a reset
+    # should never land mid-session while someone is looking at the demo.
+    - cron: '0 1 * * *'
+
+  # Lets you reset by hand right before showing the project to someone.
+  workflow_dispatch:
+
+# Never let two resets overlap. A second run while the first is mid-wipe would seed
+# on top of a half-cleared database.
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Reset demo data
+        env:
+          RESET_URL: ${{ secrets.DEMO_RESET_URL }}
+          RESET_TOKEN: ${{ secrets.DEMO_RESET_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${RESET_URL:-}" ] || [ -z "${RESET_TOKEN:-}" ]; then
+            echo "::error::DEMO_RESET_URL and DEMO_RESET_TOKEN must be set as repository secrets."
+            exit 1
+          fi
+
+          # -sS keeps curl quiet but still prints errors. The body goes to a file so a
+          # failure can be reported without the token ever reaching the log.
+          status=$(curl -sS -o response.json -w '%{http_code}' \
+            --max-time 120 \
+            --retry 3 --retry-delay 10 --retry-connrefused \
+            -X POST "$RESET_URL" \
+            -H "X-Demo-Reset-Token: $RESET_TOKEN")
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Reset failed with HTTP $status"
+            cat response.json || true
+            exit 1
+          fi
+
+          echo "Reset succeeded:"
+          cat response.json
+          echo ""
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f response.json ]; then
+            {
+              echo "### Demo reset"
+              echo ''
+              echo '```json'
+              cat response.json
+              echo ''
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

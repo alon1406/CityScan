@@ -11,6 +11,7 @@ import {
   userRoutes,
   logRoutes,
   healthRoutes,
+  demoRoutes,
 } from './routes/index.js';
 import {
   createAuthMiddleware,
@@ -81,6 +82,13 @@ export function createApp(container: Container = createContainer()): Express {
   app.use('/users', userRoutes(container.controllers.user, authMiddleware));
   app.use('/hazards', hazardRoutes(container.controllers.hazard, authMiddleware));
   app.use('/logs', logRoutes(container.controllers.log, authMiddleware));
+
+  // Mounted only on the public demo deployment. Everywhere else the path simply does
+  // not exist, so a destructive endpoint cannot be reached even by someone who knows it.
+  if (config.demoReset.enabled) {
+    app.use('/demo', demoRoutes(container.controllers.demo));
+    console.log('  Demo reset endpoint is ENABLED at POST /demo/reset');
+  }
 
   app.get('/', (_req, res) => {
     res.json({ name: 'CityScan API', status: 'running', profile: config.profile });

@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# A newer push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — build & test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # `npm ci` rather than `npm install`: it installs exactly what the lockfile
+      # pins and fails if package.json and the lockfile have drifted apart.
+      - name: Install
+        run: npm ci
+
+      - name: Type-check and build
+        run: npm run build
+
+      # No services block and no secrets: mongodb-memory-server downloads and runs a
+      # real mongod for the suite, so the tests need nothing from the runner.
+      - name: Test
+        run: npm test
+
+  frontend:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # `tsc -b && vite build` — a type error fails the build, so this is a real
+      # type check, not just a bundle.
+      - name: Build
+        run: npm run build
+
+      # `npm run lint` is deliberately not wired up yet. It currently reports ten
+      # errors, all react-hooks/set-state-in-effect and react-refresh
+      # /only-export-components in MapComponent, ReportSidebar and MyReportsPage —
+      # exactly the files Phase 2 rewrites. Fixing them now and rewriting them next
+      # week is wasted work, and a red badge is worse than no badge. Add this step
+      # once Phase 2 lands.
+
+  ai-service:
+    name: AI service — import check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: ai-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: ai-service/requirements.txt
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      # There are no tests here yet, so this at least catches a syntax error or a
+      # missing dependency — which is exactly how the `_id` Pydantic bug reached
+      # production-shaped code unnoticed.
+      - name: Import the app
+        run: python -c "from app.main import app; print('ai-service imports cleanly')"

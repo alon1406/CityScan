@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": [
+    "SPA fallback. React Router handles routing in the browser, but a hard load of",
+    "/login or /admin makes Vercel look for a file at that path, find nothing, and",
+    "return 404 — so deep links and page refreshes broke while / worked fine.",
+    "",
+    "Rewrites are evaluated only after the filesystem check, so real assets under",
+    "/assets/* are still served normally and never reach this rule."
+  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

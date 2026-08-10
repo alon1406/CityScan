@@ -1,3 +1,5 @@
+import { buildDemoHazards } from '../data/demoFixtures'
+
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000'
 
 /** AI service base URL (no trailing slash). Used in demo mode for photo analysis. */
@@ -8,6 +10,27 @@ export const IS_DEMO =
   import.meta.env.VITE_IS_DEMO === 'true' || import.meta.env.VITE_IS_DEMO === true
 
 const DEMO_VAULT_KEY = 'demo_vault'
+
+/**
+ * Must match `DUPLICATE_RADIUS_METERS` in the backend config. Only used by the
+ * demo-mode duplicate check below.
+ */
+const DUPLICATE_RADIUS_METERS = 50
+
+/** Statuses that still count as present on the map, mirroring the backend. */
+const UNRESOLVED: readonly HazardStatus[] = ['open', 'in_progress']
+
+/** Great-circle distance in metres. */
+function distanceMeters(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6_378_100
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(bLat - aLat)
+  const dLng = toRad(bLng - aLng)
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('cityscan_token')
@@ -102,10 +125,26 @@ interface DemoVault {
   hazards: Record<string, Hazard | null>
 }
 
+/**
+ * Reads the vault, seeding it from the bundled fixtures on a visitor's first load.
+ *
+ * Seeding happens **only when the key is absent**, never when it merely parses to an
+ * empty set. A visitor who deletes every hazard leaves entries explicitly set to `null`,
+ * so the key exists and must not be re-seeded — otherwise deleting a report would appear
+ * to do nothing. Deletions persist for that browser; a fresh browser gets the full set.
+ * Same semantics as the backend's nightly reset.
+ */
 function getDemoVault(): DemoVault {
   try {
     const raw = localStorage.getItem(DEMO_VAULT_KEY)
-    if (!raw) return { hazards: {} }
+
+    if (raw === null) {
+      if (!IS_DEMO) return { hazards: {} }
+      const seeded: DemoVault = { hazards: buildDemoHazards() }
+      setDemoVault(seeded)
+      return seeded
+    }
+
     const parsed = JSON.parse(raw) as DemoVault
     return { hazards: parsed.hazards ?? {} }
   } catch {
@@ -117,11 +156,28 @@ function setDemoVault(vault: DemoVault): void {
   localStorage.setItem(DEMO_VAULT_KEY, JSON.stringify(vault))
 }
 
+/**
+ * What each endpoint would have filtered server-side.
+ *
+ * Demo mode has to reproduce it locally, because the query string is built and then
+ * never sent anywhere. Without this the map showed resolved hazards and the
+ * "already reported here" popup listed every hazard in the city.
+ */
+interface DemoQuery {
+  where?: (h: Hazard) => boolean
+  limit?: number | undefined
+}
+
 /** In demo mode: use only demo_vault (no backend calls, so no 429). When not demo, call API and merge with vault. */
-async function getHazardsWithDemoMerge(fetchFn: () => Promise<Hazard[]>): Promise<Hazard[]> {
+async function getHazardsWithDemoMerge(
+  fetchFn: () => Promise<Hazard[]>,
+  demo?: DemoQuery
+): Promise<Hazard[]> {
   if (IS_DEMO) {
-    const vault = getDemoVault()
-    return Object.values(vault.hazards).filter((h): h is Hazard => h !== null)
+    let list = Object.values(getDemoVault().hazards).filter((h): h is Hazard => h !== null)
+    if (demo?.where) list = list.filter(demo.where)
+    list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)) // newest first, as the API does
+    return demo?.limit ? list.slice(0, demo.limit) : list
   }
   let list: Hazard[]
   try {
@@ -146,7 +202,12 @@ export function fetchHazards(params?: { limit?: number; status?: HazardStatus; t
   if (params?.type) q.set('type', params.type)
   if (params?.unsolved) q.set('unsolved', '1')
   const query = q.toString()
-  return getHazardsWithDemoMerge(() => api.get<Hazard[]>(`/hazards${query ? `?${query}` : ''}`))
+  return getHazardsWithDemoMerge(() => api.get<Hazard[]>(`/hazards${query ? `?${query}` : ''}`), {
+    limit: params?.limit,
+    where: (h) =>
+      (params?.unsolved ? UNRESOLVED.includes(h.status) : !params?.status || h.status === params.status) &&
+      (!params?.type || h.type === params.type),
+  })
 }
 
 /** Fetches hazards reported by the current user (requires auth). */
@@ -154,7 +215,12 @@ export function fetchMyHazards(params?: { limit?: number }): Promise<Hazard[]> {
   const q = new URLSearchParams()
   if (params?.limit) q.set('limit', String(params.limit))
   const query = q.toString()
-  return getHazardsWithDemoMerge(() => api.get<Hazard[]>(`/hazards/mine${query ? `?${query}` : ''}`))
+  return getHazardsWithDemoMerge(() => api.get<Hazard[]>(`/hazards/mine${query ? `?${query}` : ''}`), {
+    limit: params?.limit,
+    // Only what this visitor filed. The seeded fixtures belong to a different author,
+    // so "My reports" starts empty and fills as they use the demo — same as the real API.
+    where: (h) => h.reportedBy?._id === MOCK_DEMO_USER._id,
+  })
 }
 
 /** Count of open reports for admin navbar badge (requires auth + admin role). */
@@ -201,6 +267,14 @@ export function updateHazard(id: string, data: { status?: HazardStatus; descript
 
 /** Get AI description for a hazard photo. Uses backend proxy when available (keeps API key server-side); falls back to direct AI service for local dev. */
 export async function analyzeHazardPhoto(imageBase64: string): Promise<string> {
+  // Photo analysis needs the Gemini key, and a key in a Vite bundle is a published
+  // key — everything prefixed VITE_ is inlined into the shipped JavaScript. So the
+  // browser-only demo cannot do this, and says so instead of firing two requests at
+  // a backend that is not deployed and appearing to hang.
+  if (IS_DEMO) {
+    throw new Error('AI photo analysis runs on the server and is unavailable in the browser demo.')
+  }
+
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...getAuthHeader() }
   const body = JSON.stringify({ image: imageBase64 })
 
@@ -272,7 +346,13 @@ export function fetchNearbyHazards(latitude: number, longitude: number, radiusMe
     longitude: String(longitude),
     radiusMeters: String(radiusMeters),
   })
-  return getHazardsWithDemoMerge(() => api.get<Hazard[]>(`/hazards/nearby?${params}`))
+  return getHazardsWithDemoMerge(() => api.get<Hazard[]>(`/hazards/nearby?${params}`), {
+    // The radius filter the backend does with $geoWithin. Without it the demo's
+    // "already reported here" popup listed every hazard in the city.
+    where: (h) =>
+      UNRESOLVED.includes(h.status) &&
+      distanceMeters(latitude, longitude, h.latitude, h.longitude) <= radiusMeters,
+  })
 }
 
 export interface CheckSameHazardResponse {
@@ -287,6 +367,32 @@ export function checkSameHazard(data: {
   longitude: number
   address?: string
 }): Promise<CheckSameHazardResponse> {
-  if (IS_DEMO) return Promise.resolve({ isDuplicate: false })
+  if (IS_DEMO) {
+    // Tier one, run in the browser because the demo has no backend.
+    //
+    // This deliberately duplicates a business rule that belongs in the server's
+    // logic layer — the only place in this codebase that does. It is justified
+    // solely because the public demo would otherwise accept duplicate reports and
+    // demonstrate nothing, and it is deleted the moment a backend is deployed.
+    //
+    // Only the deterministic tier is reproducible here. Tier two — the LLM
+    // adjudication for nearby hazards of a *different* type — needs the Gemini key,
+    // which must never reach the browser. See `analyzeHazardPhoto` for the same
+    // reasoning.
+    const existing = Object.values(getDemoVault().hazards).filter(
+      (h): h is Hazard => h !== null && UNRESOLVED.includes(h.status)
+    )
+
+    const match = existing.find(
+      (h) =>
+        h.type === data.type &&
+        distanceMeters(data.latitude, data.longitude, h.latitude, h.longitude) <=
+          DUPLICATE_RADIUS_METERS
+    )
+
+    return Promise.resolve(
+      match ? { isDuplicate: true, matchingHazardId: match._id } : { isDuplicate: false }
+    )
+  }
   return api.post<CheckSameHazardResponse>('/hazards/check-same-hazard', data)
 }
