@@ -2,38 +2,47 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/app.js",
-    "dev": "nodemon --watch src --exec tsx src/app.ts",
-    "clear-reports": "tsx src/scripts/clearReports.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "cross-env NODE_ENV=production node dist/server.js",
+    "dev": "cross-env NODE_ENV=development nodemon --watch src --ext ts --exec tsx src/server.ts",
+    "clear-reports": "cross-env NODE_ENV=development tsx src/scripts/clearReports.ts",
+    "seed:demo": "cross-env NODE_ENV=development tsx src/scripts/seedDemo.ts",
+    "db:up": "docker compose -f ../docker-compose.dev.yml up -d",
+    "db:down": "docker compose -f ../docker-compose.dev.yml down",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "express-rate-limit": "^7.5.0",
-    "express-validator": "^7.2.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^7.1.0",
     "mongoose": "^9.2.4",
-    "nodemon": "^3.1.14",
-    "tsx": "^4.19.2"
+    "sharp": "^0.35.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.7",
-    "@types/mongoose": "^5.11.96",
-    "typescript": "^5.9.3"
+    "@types/node": "^26.1.2",
+    "@types/supertest": "^7.2.1",
+    "cross-env": "^10.1.0",
+    "mongodb-memory-server": "^11.2.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.9",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }
