@@ -15,12 +15,24 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 load_dotenv()
 
 if os.environ.get("GEMINI_API_KEY"):
     genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+
+# Single source of truth for the model, overridable without touching code.
+#
+# Was "gemini-1.5-flash", repeated at three call sites. Google retired the 1.5 family,
+# so every call started returning
+#   404 models/gemini-1.5-flash is not found for API version v1beta
+# and, because the backend fails open, surfaced as a permanent "not a duplicate"
+# rather than as an error.
+#
+# Pinned deliberately rather than using the moving "gemini-flash-latest" alias: an
+# alias that shifts underneath you changes behaviour without a deploy.
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash").strip() or "gemini-3.5-flash"
 
 # CORS: set CORS_ORIGINS to comma-separated origins (e.g. https://yourapp.vercel.app,http://localhost:3000).
 # Empty or unset = no browser cross-origin access (server-to-server only).
@@ -57,7 +69,22 @@ def secrets_compare(a: str, b: str) -> bool:
 # --- Request/Response models (snake_case for Python API) ---
 
 class ExistingHazard(BaseModel):
-    _id: str
+    """
+    One hazard already on the map, sent by the backend for comparison.
+
+    The wire field is `_id` (MongoDB's key), but it CANNOT be declared as `_id` here:
+    Pydantic treats any leading-underscore name as a private attribute and excludes it
+    from the model entirely. Declaring `_id: str` silently produced a model with no such
+    field, so the value never arrived and every `h._id` raised AttributeError — which
+    made /check-duplicate return 500 on every call. The backend fails open, so this
+    surfaced as a permanent "not a duplicate" rather than as an error.
+
+    Declared as `id` with an alias so the JSON contract is unchanged.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str = Field(alias="_id")
     type: str
     status: str
     description: Optional[str] = None
@@ -94,7 +121,7 @@ def check_same_hazard(existing_hazards: list[ExistingHazard], new_report: NewRep
         return CheckDuplicateResponse(is_duplicate=False, matching_hazard_id=None)
 
     existing_list = "\n".join(
-        f"- ID: {h._id}, type: {h.type}, status: {h.status}"
+        f"- ID: {h.id}, type: {h.type}, status: {h.status}"
         + (f", description: {h.description}" if h.description else "")
         for h in existing_hazards
     )
@@ -114,7 +141,7 @@ Reply with ONLY a JSON object, no other text: {{"isDuplicate": true or false, "m
 If isDuplicate is true, matchingHazardId must be one of the IDs from the list. If false, matchingHazardId must be null."""
 
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel(GEMINI_MODEL)
         resp = model.generate_content(prompt, generation_config={"temperature": 0})
         content = (resp.text or "").strip()
         if not content:
@@ -127,7 +154,7 @@ If isDuplicate is true, matchingHazardId must be one of the IDs from the list. I
         parsed = json.loads(json_match.group())
         is_dup = bool(parsed.get("isDuplicate"))
         match_id = parsed.get("matchingHazardId")
-        if is_dup and match_id and any(h._id == match_id for h in existing_hazards):
+        if is_dup and match_id and any(h.id == match_id for h in existing_hazards):
             return CheckDuplicateResponse(is_duplicate=True, matching_hazard_id=match_id)
         return CheckDuplicateResponse(is_duplicate=False, matching_hazard_id=None)
 
@@ -158,7 +185,7 @@ def _analyze_hazard_image(image_b64: str) -> str:
         import io
         import PIL.Image
         img = PIL.Image.open(io.BytesIO(image_bytes))
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel(GEMINI_MODEL)
         resp = model.generate_content(
             [
                 "This image is from a citizen report of an urban hazard (pothole, broken streetlight, debris, flooding, etc.). "
@@ -172,7 +199,7 @@ def _analyze_hazard_image(image_b64: str) -> str:
     except ImportError:
         # No PIL: try inline_data dict with bytes
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel(GEMINI_MODEL)
             resp = model.generate_content(
                 [
                     "This image is from a citizen report of an urban hazard. In one or two short sentences, describe what you see.",
