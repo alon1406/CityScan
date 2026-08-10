@@ -78,6 +78,16 @@ const envSchema = z.object({
 
   // --- SSE ---
   SSE_HEARTBEAT_MS: z.coerce.number().int().positive().default(25_000),
+
+  // --- Demo reset (public portfolio deployment only) ---
+  // Deliberately NOT keyed off NODE_ENV. The portfolio deployment runs the production
+  // profile, so gating on that would either expose a destructive endpoint everywhere or
+  // nowhere. This is an explicit, separate opt-in that only the demo host sets.
+  DEMO_RESET_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  DEMO_RESET_TOKEN: z.string().trim().min(16, 'DEMO_RESET_TOKEN must be at least 16 characters').optional(),
 });
 
 /**
@@ -119,6 +129,12 @@ if (isProduction) {
   if (!e.FRONTEND_URL && !e.CORS_ORIGIN) {
     fatal.push('FRONTEND_URL (or CORS_ORIGIN) must be set in production — refusing to allow all origins');
   }
+}
+
+// The reset endpoint wipes the database. Enabling it without a token would leave a
+// destructive operation open to anyone who guesses the path.
+if (e.DEMO_RESET_ENABLED && !e.DEMO_RESET_TOKEN) {
+  fatal.push('DEMO_RESET_ENABLED=true requires DEMO_RESET_TOKEN — refusing to expose an unauthenticated database wipe');
 }
 if (fatal.length > 0) {
   console.error(`\n Refusing to start in production:\n${fatal.map((m) => `  - ${m}`).join('\n')}\n`);
@@ -195,6 +211,11 @@ export const config = Object.freeze({
 
   sse: Object.freeze({
     heartbeatMs: e.SSE_HEARTBEAT_MS,
+  }),
+
+  demoReset: Object.freeze({
+    enabled: e.DEMO_RESET_ENABLED,
+    token: e.DEMO_RESET_TOKEN,
   }),
 });
 

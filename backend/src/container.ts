@@ -13,15 +13,18 @@ import { LogsServiceImpl } from './logic/impl/logs.service.impl.js';
 import { GeminiAiServiceImpl } from './logic/impl/gemini.ai.service.impl.js';
 import { LocalDiskPhotoStorageImpl } from './logic/impl/localDisk.photoStorage.impl.js';
 import { EmitterEventsServiceImpl } from './logic/impl/emitter.events.service.impl.js';
+import { DemoServiceImpl } from './logic/impl/demo.service.impl.js';
 
 import { HazardController } from './controllers/hazard.controller.js';
 import { AuthController } from './controllers/auth.controller.js';
 import { UserController } from './controllers/user.controller.js';
 import { LogController } from './controllers/log.controller.js';
+import { DemoController } from './controllers/demo.controller.js';
 
 import type { AiService } from './logic/ai.service.js';
 import type { EventsService } from './logic/events.service.js';
 import type { AuthService } from './logic/auth.service.js';
+import type { DemoService } from './logic/demo.service.js';
 
 /**
  * Composition root.
@@ -38,11 +41,13 @@ export interface Container {
   ai: AiService;
   events: EventsService;
   auth: AuthService;
+  demo: DemoService;
   controllers: {
     hazard: HazardController;
     auth: AuthController;
     user: UserController;
     log: LogController;
+    demo: DemoController;
   };
 }
 
@@ -73,16 +78,19 @@ export function createContainer(): Container {
   const authService = new AuthServiceImpl(userRepository, userConverter);
   const usersService = new UsersServiceImpl(userRepository, userConverter);
   const logsService = new LogsServiceImpl(logRepository, logConverter);
+  const demoService = new DemoServiceImpl(photos, events);
 
   return {
     ai,
     events,
     auth: authService,
+    demo: demoService,
     controllers: {
       hazard: new HazardController(hazardsService, events),
       auth: new AuthController(authService),
       user: new UserController(usersService),
       log: new LogController(logsService),
+      demo: new DemoController(demoService),
     },
   };
 }
