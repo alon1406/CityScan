@@ -249,9 +249,18 @@ async function seed(): Promise<void> {
     // .save() so the pre-save hook builds the GeoJSON `location` the 2dsphere index needs.
     await doc.save();
 
-    // Backdate afterwards — `timestamps: true` overwrites createdAt on insert.
+    // Backdate afterwards, because `timestamps: true` stamps createdAt on insert.
+    //
+    // Deliberately the native driver collection rather than `Hazard.updateOne`.
+    // Mongoose reasserts its automatic timestamps over anything set through the model —
+    // `{ timestamps: false }` on the update did not stop it either — so every seeded row
+    // silently ended up dated "now" and the admin list showed fifteen identical dates.
+    // `Model.collection` bypasses Mongoose middleware entirely.
     const createdAt = new Date(now - h.daysAgo * 24 * 60 * 60 * 1000);
-    await Hazard.updateOne({ _id: doc._id }, { $set: { createdAt, updatedAt: createdAt } }).exec();
+    await Hazard.collection.updateOne(
+      { _id: doc._id },
+      { $set: { createdAt, updatedAt: createdAt } }
+    );
 
     created += 1;
   }
