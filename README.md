@@ -55,7 +55,7 @@ One rule holds it together: **each layer only knows the one below it.** `data/` 
 know `logic/` exists; `logic/` does not know HTTP exists. That is what lets the business
 logic be tested without a server, and the LLM provider be swapped without touching it.
 
-Full write-up, in Hebrew: [`docs/CityScan-Architecture-Guide-HE.pdf`](docs/CityScan-Architecture-Guide-HE.pdf)
+Full write-up, in Hebrew: [`docs/CityScan-Guide-HE.pdf`](docs/CityScan-Guide-HE.pdf)
 
 ---
 
