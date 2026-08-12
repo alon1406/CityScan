@@ -181,46 +181,28 @@ function MapEvents({
   return null
 }
 
-/** Opens a popup at the given position with "What was already reported" when there are hazards. */
-function OpenExistingReportsPopup({
-  position,
-  hazards,
-  typeLabels,
+/**
+ * Opens the selected marker's popup once nearby reports have loaded.
+ *
+ * This replaces a component that rendered the same popup through `innerHTML`,
+ * interpolating `h.description` — free text written by any reporter — so a report
+ * containing markup ran in the browser of everyone who opened the map. Stored XSS,
+ * not reflected, and it was the only such sink in the frontend.
+ *
+ * The equivalent popup already existed in JSX below, where React escapes the
+ * content. The only thing the unsafe version added was opening by itself, which is
+ * all this does now; there is no longer anything to inject into.
+ */
+function AutoOpenPopup({
+  markerRef,
+  openWhen,
 }: {
-  position: Position | null
-  hazards: Hazard[]
-  typeLabels: Record<string, string>
+  markerRef: React.RefObject<L.Marker | null>
+  openWhen: unknown
 }) {
-  const map = useMap()
   useEffect(() => {
-    if (!position || hazards.length === 0) return
-    const [lat, lng] = position
-    const div = document.createElement('div')
-    div.className = 'existing-reports-popup'
-    div.style.minWidth = '200px'
-    div.innerHTML = `
-      <strong class="d-block mb-2">Already reported here (within 50m)</strong>
-      <ul class="list-unstyled small mb-2 ps-0">
-        ${hazards
-          .slice(0, 8)
-          .map(
-            (h) => `
-          <li class="mb-1">
-            ${typeLabels[h.type] ?? h.type}
-            <span class="badge ms-1 badge-status-${h.status}">${h.status === 'open' ? 'Open' : h.status === 'in_progress' ? 'In progress' : 'Resolved'}</span>
-            ${h.description ? `<span class="d-block text-muted">${h.description.slice(0, 60)}${h.description.length > 60 ? '…' : ''}</span>` : ''}
-          </li>
-        `
-          )
-          .join('')}
-        ${hazards.length > 8 ? `<li class="text-muted">…and ${hazards.length - 8} more</li>` : ''}
-      </ul>
-    `
-    const popup = L.popup().setLatLng([lat, lng]).setContent(div).openOn(map)
-    return () => {
-      if (map.hasLayer(popup)) map.removeLayer(popup)
-    }
-  }, [position, hazards, map, typeLabels])
+    markerRef.current?.openPopup()
+  }, [markerRef, openWhen])
   return null
 }
 
@@ -239,6 +221,8 @@ export default function MapComponent({
   const [flyToTarget, setFlyToTarget] = useState<Position | null>(null)
   const [existingReportsAtClick, setExistingReportsAtClick] = useState<Hazard[]>([])
   const skipNextMapClickRef = useRef(false)
+  // Lets AutoOpenPopup open this marker's popup without reaching into the map instance.
+  const selectedMarkerRef = useRef<L.Marker | null>(null)
   const hadPositionRef = useRef(false)
 
   useEffect(() => {
@@ -342,11 +326,7 @@ export default function MapComponent({
           onClearSelection={clearSelection}
         />
         <MapEvents onMapClick={handleMapClick} skipNextMapClickRef={skipNextMapClickRef} />
-        <OpenExistingReportsPopup
-          position={selectedPosition}
-          hazards={existingReportsAtClick}
-          typeLabels={TYPE_LABELS}
-        />
+        <AutoOpenPopup markerRef={selectedMarkerRef} openWhen={existingReportsAtClick} />
         {hazards.map((h) => (
           <Marker key={h._id} position={[h.latitude, h.longitude]} icon={getHazardMarkerIcon(h.type)}>
             <Popup>
@@ -362,7 +342,7 @@ export default function MapComponent({
           </Marker>
         ))}
         {selectedPosition && (
-          <Marker position={selectedPosition} icon={redMarkerIcon}>
+          <Marker position={selectedPosition} icon={redMarkerIcon} ref={selectedMarkerRef}>
             <Popup>
               {existingReportsAtClick.length > 0 ? (
                 <div className="existing-reports-popup">
