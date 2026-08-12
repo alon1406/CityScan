@@ -6,17 +6,32 @@ import 'leaflet/dist/leaflet.css'
 import ReportSidebar from './ReportSidebar'
 import { fetchHazards, fetchNearbyHazards, type Hazard } from '../api/client'
 
-// Fix default marker icon when using bundlers (Vite/Webpack)
+/**
+ * Marker images are served from this app, not from a third party.
+ *
+ * They previously came from `raw.githubusercontent.com` and `cdnjs.cloudflare.com` —
+ * 28 image requests to two foreign hosts on every page load. `raw.githubusercontent.com`
+ * is not a CDN: it serves raw repository files for browsing, and GitHub rate-limits and
+ * blocks automated use of it. The day that happens every marker vanishes from the map
+ * with no change on our side.
+ *
+ * Files live in `frontend/public/markers/`. Vite copies `public/` into the build
+ * verbatim, so these ship with the app and are served from the same origin.
+ */
+const MARKERS = '/markers'
+
+// Leaflet resolves its default icon paths relative to the bundled CSS, which breaks
+// under Vite. Point them at the local copies instead.
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: string })._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconRetinaUrl: `${MARKERS}/marker-default-2x.png`,
+  iconUrl: `${MARKERS}/marker-default.png`,
+  shadowUrl: `${MARKERS}/marker-shadow.png`,
 })
 
 const redMarkerIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconUrl: `${MARKERS}/marker-red.png`,
+  shadowUrl: `${MARKERS}/marker-shadow.png`,
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
@@ -24,7 +39,7 @@ const redMarkerIcon = new L.Icon({
 })
 
 const markerIconOptions = {
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  shadowUrl: `${MARKERS}/marker-shadow.png`,
   iconSize: [25, 41] as [number, number],
   iconAnchor: [12, 41] as [number, number],
   popupAnchor: [1, -34] as [number, number],
@@ -32,11 +47,11 @@ const markerIconOptions = {
 }
 
 const HAZARD_TYPE_MARKER_URLS: Record<string, string> = {
-  pothole: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  broken_streetlight: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
-  debris: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png',
-  flooding: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  other: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png',
+  pothole: `${MARKERS}/marker-red.png`,
+  broken_streetlight: `${MARKERS}/marker-yellow.png`,
+  debris: `${MARKERS}/marker-grey.png`,
+  flooding: `${MARKERS}/marker-blue.png`,
+  other: `${MARKERS}/marker-violet.png`,
 }
 
 const hazardTypeIcons: Record<string, L.Icon> = {}
@@ -312,9 +327,17 @@ export default function MapComponent({
         style={{ minHeight: '400px' }}
         scrollWheelZoom
       >
+        {/*
+          CARTO Voyager rather than the raw OSM tiles: the same OpenStreetMap data with a
+          restrained palette, so the hazard markers read as the foreground instead of
+          competing with the basemap. Free, no API key. Attribution is required by both
+          OpenStreetMap (the data) and CARTO (the styling).
+        */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          subdomains="abcd"
+          maxZoom={20}
         />
         <MapCenter center={mapCenter} />
         <MapFlyTo flyToTarget={flyToTarget} onFlown={handleFlown} />
