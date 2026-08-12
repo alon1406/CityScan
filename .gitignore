@@ -20,6 +20,21 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Certificates and keys. Added before deployment work — a TLS cert or an SSH key
+# committed by accident is the classic way a private key ends up public.
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Local Docker overrides commonly hold host-specific secrets
+docker-compose.override.yml
+
+# Test and coverage output
+coverage/
+.vitest/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -30,3 +45,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Windows
+Thumbs.db
+Desktop.ini
