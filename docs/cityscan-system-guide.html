@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>CityScan — מדריך המערכת</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --surface:#fff; --ink:#1a1a18; --muted:#6b6864; --line:#e4e0d9;
+    --accent:#b3541e; --accent-soft:#fdf1e8; --code-bg:#f6f4f0; --code-ink:#2d2a26;
+    --ok:#2f6b4f; --warn:#8a6d1f; --danger:#a03232;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:"Segoe UI",Rubik,system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  }
+  /* Light only, on purpose. This is a document meant to be read on paper and in
+     print preview, so it commits to one palette rather than following the reader's
+     system theme — a dark variant here would print dark on a machine set to dark. */
+  html{background:#fbfaf8; color-scheme:light}
+
+  body{
+    direction:rtl; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.75; font-size:16.5px; margin:0; padding:0 1.25rem 6rem;
+  }
+  .wrap{max-width:52rem;margin:0 auto}
+
+  header.title{padding:3.5rem 0 2rem;border-bottom:3px solid var(--accent);margin-bottom:2.5rem}
+  header.title h1{font-size:2.6rem;line-height:1.15;margin:0 0 .6rem;letter-spacing:-.02em}
+  header.title .sub{color:var(--muted);font-size:1.05rem;margin:0}
+  header.title .meta{margin-top:1.2rem;font-size:.85rem;color:var(--muted);font-family:var(--mono)}
+
+  h2{font-size:1.75rem;margin:3.5rem 0 .3rem;letter-spacing:-.015em;line-height:1.25}
+  h2 .num{color:var(--accent);font-family:var(--mono);font-size:1.1rem;margin-inline-end:.5rem}
+  h3{font-size:1.2rem;margin:2.2rem 0 .3rem;color:var(--ink)}
+  h4{font-size:1rem;margin:1.6rem 0 .3rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:.8rem}
+  p{margin:.85rem 0}
+
+  .part{
+    margin:5rem 0 0;padding:1.4rem 1.6rem;background:var(--accent-soft);
+    border-radius:.7rem;border:1px solid var(--line)
+  }
+  .part .kicker{font-family:var(--mono);font-size:.78rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+  .part h2{margin:.3rem 0 .4rem;font-size:2rem}
+  .part p{margin:0;color:var(--muted)}
+
+  code{font-family:var(--mono);font-size:.87em;background:var(--code-bg);padding:.12em .38em;border-radius:.25em;direction:ltr;display:inline-block}
+  pre{
+    direction:ltr;text-align:left;background:var(--code-bg);color:var(--code-ink);
+    padding:1rem 1.1rem;border-radius:.6rem;overflow-x:auto;font-family:var(--mono);
+    font-size:.83rem;line-height:1.6;border:1px solid var(--line);margin:1.1rem 0
+  }
+  pre code{background:none;padding:0;font-size:inherit;display:inline}
+
+  table{width:100%;border-collapse:collapse;margin:1.2rem 0;font-size:.92rem;display:block;overflow-x:auto}
+  th,td{border-bottom:1px solid var(--line);padding:.6rem .7rem;text-align:right;vertical-align:top}
+  th{font-weight:600;color:var(--muted);font-size:.82rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--line)}
+  td code{font-size:.82em}
+
+  blockquote{
+    margin:1.4rem 0;padding:.9rem 1.1rem;border-inline-start:3px solid var(--accent);
+    background:var(--surface);border-radius:.4rem;color:var(--muted)
+  }
+  blockquote p{margin:.3rem 0}
+  blockquote strong{color:var(--ink)}
+
+  .note{border-inline-start-color:var(--ok)}
+  .caution{border-inline-start-color:var(--warn)}
+  .stop{border-inline-start-color:var(--danger)}
+
+  ul,ol{padding-inline-start:1.4rem;margin:.85rem 0}
+  li{margin:.4rem 0}
+  li>strong:first-child{color:var(--ink)}
+
+  hr{border:0;border-top:1px solid var(--line);margin:3rem 0}
+  a{color:var(--accent)}
+
+  .toc{background:var(--surface);border:1px solid var(--line);border-radius:.7rem;padding:1.3rem 1.6rem;margin:2rem 0}
+  .toc h3{margin:0 0 .8rem;font-size:1rem}
+  .toc ol{margin:0;padding-inline-start:1.3rem;font-size:.93rem;columns:2;column-gap:2rem}
+  .toc li{margin:.25rem 0;break-inside:avoid}
+
+  .flow{font-family:var(--mono);font-size:.8rem;line-height:1.9;direction:ltr;text-align:left;
+    background:var(--code-bg);border:1px solid var(--line);border-radius:.6rem;padding:1.1rem;overflow-x:auto;margin:1.2rem 0}
+
+  @media print{
+    :root{
+      --bg:#fff; --surface:#fff; --code-bg:#f4f2ee; --code-ink:#1a1a18;
+      --ink:#000; --muted:#444; --line:#ccc;
+      --accent:#a34a19; --accent-soft:#f8efe7;
+      --ok:#2f6b4f; --warn:#7a5f16; --danger:#8f2b2b;
+    }
+    html,body{background:#fff !important;color:#000 !important}
+    body{font-size:10.5pt;padding:0}
+    .wrap{max-width:none}
+
+    /* Each topic opens a new page. The banner inside a .part divider must not
+       break again, or every part would cost two pages instead of one. */
+    h2{page-break-before:always;page-break-after:avoid;margin-top:0}
+    .part{page-break-before:always;background:#f8efe7}
+    .part h2{page-break-before:avoid;page-break-after:avoid}
+    h3,h4{page-break-after:avoid}
+    pre,table,blockquote,.flow,tr{page-break-inside:avoid}
+    p{orphans:3;widows:3}
+
+    /* Title page and contents share page one; the first part banner opens page two. */
+    header.title{page-break-after:avoid}
+    .toc{page-break-inside:avoid}
+    .toc ol{columns:2}
+    .toc a{color:#000;text-decoration:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="title">
+  <h1>CityScan — מדריך המערכת</h1>
+  <p class="sub">כל תיקייה, כל קובץ, זרימת הבקשה, ואיך שמירה למסד הנתונים באמת מתבצעת</p>
+  <p class="meta">
+    עודכן: 14 באוגוסט 2026 · מבוסס על <code>main</code> @ <code>456894a</code><br>
+    מחליף את <code>CityScan-Guide-HE.pdf</code> ואת <code>cityscan-guide.html</code>
+  </p>
+</header>
+
+<div class="toc">
+  <h3>תוכן</h3>
+  <ol>
+    <li><a href="#s01">מה המערכת עושה</a></li>
+    <li><a href="#s02">שלושת השירותים</a></li>
+    <li><a href="#s03">מפת התיקיות</a></li>
+    <li><a href="#s04">עקרון השכבות</a></li>
+    <li><a href="#s05">routes — מיפוי כתובות</a></li>
+    <li><a href="#s06">middleware — מה שקורה לפני</a></li>
+    <li><a href="#s07">controllers — HTTP בלבד</a></li>
+    <li><a href="#s08">boundaries — חוזה הרשת</a></li>
+    <li><a href="#s09">logic — הלוגיקה העסקית</a></li>
+    <li><a href="#s10">converters — הגבול</a></li>
+    <li><a href="#s11">repositories — השאילתות</a></li>
+    <li><a href="#s12">data — הישויות</a></li>
+    <li><a href="#s13">errors, config, container</a></li>
+    <li><a href="#s14">MongoDB ו-Mongoose</a></li>
+    <li><a href="#s15">הישות Hazard, שדה אחר שדה</a></li>
+    <li><a href="#s16">הכפילות הגאוגרפית</a></li>
+    <li><a href="#s17">האינדקסים</a></li>
+    <li><a href="#s18">מסע של דיווח אחד</a></li>
+    <li><a href="#s19">ה-hook והמלכודת</a></li>
+    <li><a href="#s20">תמונות — למה לא במסד</a></li>
+    <li><a href="#s21">Users ו-Logs</a></li>
+    <li><a href="#s22">ה-Frontend</a></li>
+    <li><a href="#s23">מצב הדמו</a></li>
+    <li><a href="#s24">הכלים</a></li>
+    <li><a href="#s25">הרצה מקומית</a></li>
+  </ol>
+</div>
+
+<div class="part">
+  <div class="kicker">חלק ראשון</div>
+  <h2>מבט על</h2>
+  <p>מה נבנה, ממה הוא מורכב, ואיפה כל דבר יושב.</p>
+</div>
+
+<h2 id="s01"><span class="num">01</span>מה המערכת עושה</h2>
+
+<p>CityScan הופכת כל תושב לחיישן עירוני. אדם רואה מפגע ברחוב — בור בכביש, פנס שרוף, פסולת בנייה על המדרכה, הצפה — פותח את המפה, לוחץ על המקום, ומדווח. כל הדיווחים מופיעים על מפה משותפת שהעירייה רואה.</p>
+
+<p>הבעיה שהמערכת באמת פותרת אינה הדיווח עצמו אלא <strong>הכפילויות</strong>. אותו בור בדיזנגוף מדווח אחת עשרה פעמים, ולתושב אין דרך לדעת שכבר דיווחו עליו. CityScan עונה על זה בשתי רמות:</p>
+
+<ul>
+  <li><strong>רמה 1 — דטרמיניסטית.</strong> מפגע לא-פתור מ<em>אותו סוג</em> בתוך 50 מטר הוא כפילות, נקודה. שאילתה גאוגרפית שרצה במילישניות, בלי רשת ובלי תלות חיצונית.</li>
+  <li><strong>רמה 2 — שיפוט.</strong> רצה רק כשיש בסביבה מפגע מ<em>סוג אחר</em>, שם השאלה באמת מעורפלת: "פסולת" ו"הצפה" במרחק חמישה מטרים עשויים להיות אותה בעיה פיזית או לא. את זה מכריע LLM.</li>
+</ul>
+
+<blockquote class="note">
+  <p><strong>רמה 2 נכשלת פתוח בכוונה.</strong> אם שירות ה-AI לא זמין, הדיווח עובר. תושב חייב תמיד להיות מסוגל לדווח, גם כשתלות אופציונלית למטה. זו גם הסיבה שזיהוי הכפילויות לא הועבר לכלי אוטומציה חיצוני.</p>
+</blockquote>
+
+<h2 id="s02"><span class="num">02</span>שלושת השירותים</h2>
+
+<div class="flow">
+┌──────────────┐   REST + SSE   ┌──────────────┐   X-API-Key   ┌──────────────┐
+│  frontend/   │ ─────────────▶ │   backend/   │ ────────────▶ │ ai-service/  │
+│ React 19     │ ◀───────────── │  Express 5   │ ◀──────────── │  FastAPI     │
+│ Vite·Leaflet │                │  TypeScript  │               │  Gemini      │
+└──────────────┘                └──────┬───────┘               └──────────────┘
+                                       │
+                                       ▼
+                               ┌──────────────┐
+                               │   MongoDB    │
+                               │ 2dsphere idx │
+                               └──────────────┘
+</div>
+
+<table>
+  <tr><th>שירות</th><th>שפה</th><th>למה דווקא היא</th></tr>
+  <tr><td><code>frontend/</code></td><td>TypeScript + React 19</td><td>מפה אינטראקטיבית עם מצב מורכב בצד הלקוח</td></tr>
+  <tr><td><code>backend/</code></td><td>TypeScript + Express 5</td><td>אותה שפה כמו ה-Frontend; טיפוסים משותפים בין השניים</td></tr>
+  <tr><td><code>ai-service/</code></td><td>Python + FastAPI</td><td>המקום שבו ספריות ה-AI חיות באמת</td></tr>
+</table>
+
+<p>ההפרדה אינה קישוט. ה-Backend הוא היחיד שמחזיק את מפתח Gemini — הדפדפן לעולם לא רואה אותו, כי כל דבר שנשלח לדפדפן הוא פומבי. ה-Backend קורא ל-<code>ai-service</code> עם <code>X-API-Key</code> משלו.</p>
+
+<h2 id="s03"><span class="num">03</span>מפת התיקיות</h2>
+
+<pre><code>CityScan/
+├── backend/src/           74 קבצים · Express 5 · 46 בדיקות
+│   ├── routes/            מיפוי כתובות + שרשור שומרים
+│   ├── middleware/        אימות, ולידציה, תפקידים, הגבלת קצב, שגיאות
+│   ├── controllers/       HTTP בלבד — בלי try/catch, בלי בחירת סטטוס
+│   ├── boundaries/        DTO — חוזה הרשת + סכמות Zod
+│   ├── logic/             ממשקי שירות — מה המערכת יודעת לעשות
+│   │   └── impl/          המימושים — כל הלוגיקה העסקית כאן
+│   ├── converters/        Entity ⇄ Boundary
+│   ├── repositories/      שאילתות בלבד
+│   ├── data/              סכמות Mongoose, enums, נתוני זריעה
+│   ├── errors/            חריגות שנושאות את קוד ה-HTTP שלהן
+│   ├── config/            פרופילי סביבה, מאומתים ב-Zod באתחול
+│   ├── scripts/           זריעה ותחזוקה
+│   ├── container.ts       שורש ההרכבה — הזרקת תלויות ידנית
+│   ├── app.ts             הרכבת Express
+│   └── server.ts          נקודת הכניסה
+│
+├── frontend/src/
+│   ├── core/              config · http · session · demoVault
+│   ├── services/          authService · hazardService · aiService
+│   ├── pages/             Login · Register · Admin · MyReports
+│   ├── components/        MapComponent · ReportSidebar · NavBar · DemoBanner
+│   ├── contexts/          AuthContext
+│   ├── data/              demoFixtures
+│   └── public/markers/    8 אייקוני PNG, מאוחסנים אצלנו
+│
+├── ai-service/app/        FastAPI + Gemini
+├── docs/                  המסמך הזה
+└── .github/workflows/     CI · איפוס הדמו</code></pre>
+
+<p>המבנה של <code>backend/src</code> ושל <code>frontend/src</code> אינו שרירותי — הוא מועתק מפרויקט Java קודם, SmartCollect, כדי שאותה ארכיטקטורה תיקרא זהה בשתי שפות. ב-SmartCollect ה-Frontend יושב ב-<code>src/main/resources/static/js</code> ומחולק ל-<code>core/</code>, <code>services/</code> ו-<code>pages/</code> — בדיוק מה שיש כאן.</p>
+
+<div class="part">
+  <div class="kicker">חלק שני</div>
+  <h2>ה-Backend, שכבה אחר שכבה</h2>
+  <p>הכלל היחיד שמחזיק את הכל, ומה כל תיקייה עושה בפועל.</p>
+</div>
+
+<h2 id="s04"><span class="num">04</span>עקרון השכבות</h2>
+
+<p>כלל אחד מחזיק את המבנה כולו:</p>
+
+<blockquote>
+  <p><strong>כל שכבה מכירה רק את זו שמתחתיה.</strong></p>
+</blockquote>
+
+<p><code>data/</code> לא יודעת ש-<code>logic/</code> קיימת. <code>logic/</code> לא יודעת ש-HTTP קיים — אין בה <code>req</code>, אין <code>res</code>, ואין מספרי סטטוס. זה מה שמאפשר לבדוק את הלוגיקה העסקית בלי לעלות שרת, ולהחליף את ספק ה-LLM בלי לגעת בה.</p>
+
+<div class="flow">
+Request
+   │
+   ▼
+routes/          ← איזו כתובת, אילו שומרים
+   │
+   ▼
+middleware/      ← אימות → ולידציה → תפקיד → הגבלת קצב
+   │
+   ▼
+controllers/     ← מוציא נתונים מ-req, קורא לשירות, מחזיר סטטוס
+   │
+   ▼
+logic/impl/      ← ★ כל הכללים העסקיים ★
+   │       │
+   │       ├──▶ converters/     Entity → Boundary
+   │       └──▶ repositories/   השאילתות בלבד
+   │                  │
+   │                  ▼
+   │             data/          סכמות Mongoose
+   ▼                  │
+Response  ◀───────────┘
+</div>
+
+<h2 id="s05"><span class="num">05</span><code>routes/</code> — מיפוי כתובות</h2>
+
+<p>שישה קבצים. כל אחד מגדיר אילו כתובות קיימות ואילו שומרים עוברים לפניהן. <strong>מדיניות ההרשאות קריאה מהקבצים האלה לבדם</strong> — אין צורך לפתוח את הבקר כדי לדעת מי רשאי לגשת לאן.</p>
+
+<pre><code>router.get('/admin/list',
+  requireAuth,                      // חייב טוקן תקף
+  requireRole('admin'),             // חייב תפקיד מנהל
+  validate(adminListQuerySchema),   // הפרמטרים חייבים לעמוד בסכמה
+  asyncHandler(ctrl.adminList)      // ורק אז הבקר
+);</code></pre>
+
+<h2 id="s06"><span class="num">06</span><code>middleware/</code> — מה שקורה לפני</h2>
+
+<table>
+  <tr><th>קובץ</th><th>תפקיד</th></tr>
+  <tr><td><code>auth.middleware.ts</code></td><td>מאמת JWT, טוען את המשתמש ל-<code>req</code></td></tr>
+  <tr><td><code>requireRole.ts</code></td><td>חוסם מי שאינו בתפקיד הנדרש</td></tr>
+  <tr><td><code>validate.ts</code></td><td>מריץ סכמת Zod על גוף/שאילתה/פרמטרים</td></tr>
+  <tr><td><code>rateLimiter.ts</code></td><td>מגביל קצב; מדלג בפרופיל <code>test</code></td></tr>
+  <tr><td><code>demoRestrict.ts</code></td><td>חוסם כתיבה למנהל הדמו</td></tr>
+  <tr><td><code>asyncHandler.ts</code></td><td>עוטף פונקציות async כדי שחריגה תגיע לטיפול המרכזי</td></tr>
+  <tr><td><code>errorHandler.ts</code></td><td><strong>המקום היחיד שכותב תגובת שגיאה</strong></td></tr>
+</table>
+
+<p>כל שגיאה יוצאת באותו מבנה, שנכתב במקום אחד בדיוק:</p>
+
+<pre><code>{
+  "message": "A hazard of this type was already reported within 50m.",
+  "status": 409,
+  "timestamp": "2026-08-14T09:12:44.101Z",
+  "path": "/hazards",
+  "code": "DUPLICATE_HAZARD"
+}</code></pre>
+
+<p>בפרופיל <code>development</code> נוסף גם ה-stack; בייצור הוא לא נשלח לעולם.</p>
+
+<h2 id="s07"><span class="num">07</span><code>controllers/</code> — HTTP בלבד</h2>
+
+<p>הבקרים דקים בכוונה. אין בהם <code>try/catch</code> ואין בחירה ידנית של קוד סטטוס.</p>
+
+<pre><code>create = async (req: Request, res: Response) => {
+  const hazard = await this.hazards.create(req.body, req.user!);
+  res.status(201).json(hazard);
+};</code></pre>
+
+<p>אם השירות זורק <code>ConflictException</code>, החריגה נושאת את 409 בתוכה, <code>asyncHandler</code> מעביר אותה ל-<code>errorHandler</code>, וזה כותב את התגובה. הבקר לא צריך לדעת שכפילות קיימת.</p>
+
+<h2 id="s08"><span class="num">08</span><code>boundaries/</code> — חוזה הרשת</h2>
+
+<p>DTO — האובייקטים שנוסעים ברשת. כל קובץ מייצא גם את סכמת ה-Zod שלו, והטיפוס נגזר ממנה:</p>
+
+<pre><code>export const createHazardSchema = z.object({
+  type: z.enum(HAZARD_TYPES),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  description: z.string().trim().max(1000).optional(),
+});
+
+export type CreateHazardBoundary = z.infer&lt;typeof createHazardSchema&gt;;</code></pre>
+
+<blockquote class="note">
+  <p><strong>למה <code>z.infer</code> ולא טיפוס נפרד:</strong> אם היה טיפוס שנכתב ביד וגם סכמה, הם היו נפרדים ביום שמישהו משנה אחד מהם. כאן הטיפוס <em>נגזר</em> מהסכמה — לא ניתן לשנות אחד בלי שהשני יזוז.</p>
+</blockquote>
+
+<h2 id="s09"><span class="num">09</span><code>logic/</code> ו-<code>logic/impl/</code> — הלוגיקה העסקית</h2>
+
+<p><code>logic/</code> מכיל <strong>ממשקים</strong>: מה המערכת יודעת לעשות. <code>logic/impl/</code> מכיל את המימושים. זו ההפרדה שמאפשרת להחליף את Gemini בלי לגעת בכללים העסקיים.</p>
+
+<table>
+  <tr><th>ממשק</th><th>מימוש</th><th>שורות</th></tr>
+  <tr><td><code>hazards.service.ts</code></td><td><code>hazards.service.impl.ts</code></td><td>292</td></tr>
+  <tr><td><code>auth.service.ts</code></td><td><code>auth.service.impl.ts</code></td><td>109</td></tr>
+  <tr><td><code>ai.service.ts</code></td><td><code>gemini.ai.service.impl.ts</code></td><td>122</td></tr>
+  <tr><td><code>photoStorage.service.ts</code></td><td><code>localDisk.photoStorage.impl.ts</code></td><td>119</td></tr>
+  <tr><td><code>events.service.ts</code></td><td><code>emitter.events.service.impl.ts</code></td><td>37</td></tr>
+  <tr><td><code>demo.service.ts</code></td><td><code>demo.service.impl.ts</code></td><td>106</td></tr>
+</table>
+
+<p><code>hazards.service.impl.ts</code> הוא הלב. צורת כל מתודה זהה: <strong>הרשה → החל את הכלל → שמור → המר ביציאה</strong>, ובמקום לבחור קוד סטטוס — לזרוק חריגה מטיפוס מתאים.</p>
+
+<h2 id="s10"><span class="num">10</span><code>converters/</code> — הגבול</h2>
+
+<p>ההמרה בין הישות שבמסד לבין ה-Boundary שיוצא ברשת. זה המקום שבו <strong>גיבוב הסיסמה פיזית לא יכול לדלוף</strong>, כי ה-Boundary נבנה שדה-שדה ואף פעם לא בהעתקה.</p>
+
+<p><code>hazard.converter.ts</code> עושה שלושה דברים במקום אחד:</p>
+<ol>
+  <li><strong>מנרמל את <code>reportedBy</code>.</strong> Mongoose מחזיר לפעמים אובייקט מלא ולפעמים <code>ObjectId</code> חשוף, תלוי בשאילתה. הלקוח תמיד מצפה לאובייקט.</li>
+  <li><strong>הופך נתיבי תמונות ל-URL מלאים</strong> כש-<code>PUBLIC_BASE_URL</code> מוגדר.</li>
+  <li><strong>לא מעביר את <code>location</code>, את <code>__v</code>, ואת כל מה שפנימי.</strong> הם פשוט לא מגיעים ל-Boundary.</li>
+</ol>
+
+<h2 id="s11"><span class="num">11</span><code>repositories/</code> — השאילתות</h2>
+
+<p>כל שאילתה נמצאת כאן ורק כאן. שירות מבקש "מפגעים פתוחים ברדיוס 50 מטר" ואף פעם לא לומד מה זה רדיאן.</p>
+
+<h2 id="s12"><span class="num">12</span><code>data/</code> — הישויות</h2>
+
+<p>סכמות Mongoose, ה-enums, ונתוני הזריעה. ה-enums הם <strong>ההגדרה היחידה</strong> של כל קבוצת ערכים — סכמת Mongoose, סכמת Zod וכל בדיקת ריצה קוראות מהם:</p>
+
+<pre><code>export const HAZARD_TYPES = [
+  'pothole', 'broken_streetlight', 'debris', 'flooding', 'other',
+] as const;
+export type HazardType = (typeof HAZARD_TYPES)[number];</code></pre>
+
+<p>הוספת סוג מפגע חדש היא שינוי במקום אחד.</p>
+
+<h2 id="s13"><span class="num">13</span><code>errors/</code>, <code>config/</code>, <code>container.ts</code></h2>
+
+<p><strong><code>errors/</code></strong> — כל חריגה נושאת את קוד ה-HTTP שלה. <code>NotFoundException</code> היא 404, <code>ConflictException</code> היא 409. הלוגיקה זורקת משמעות, לא מספרים.</p>
+
+<p><strong><code>config/</code></strong> — <code>NODE_ENV</code> בוחר פרופיל, בסגנון <code>application-{profile}.properties</code> של Spring. סדר הטעינה: משתני סביבה אמיתיים ← <code>.env.{profile}</code> ← <code>.env</code>, הראשון מנצח.</p>
+
+<table>
+  <tr><th></th><th><code>development</code></th><th><code>production</code></th><th><code>test</code></th></tr>
+  <tr><td>מסד</td><td>Docker מקומי</td><td>Atlas</td><td>בזיכרון, חד-פעמי</td></tr>
+  <tr><td><code>JWT_SECRET</code></td><td>אופציונלי, מזהיר</td><td><strong>חובה, ≥32 תווים</strong></td><td>נקבע ע"י הבדיקות</td></tr>
+  <tr><td>CORS</td><td>פתוח</td><td><strong>חובה</strong></td><td>—</td></tr>
+  <tr><td>גוף שגיאה</td><td>כולל stack</td><td>הודעה גנרית</td><td>כולל stack</td></tr>
+</table>
+
+<blockquote class="caution">
+  <p><strong>שום מודול לא קורא <code>process.env</code> בזמן ייבוא.</strong> הכלל הזה הוא מה ששומר על סדר הטעינה נכון — ב-ES Modules הייבואים נטענים לפני גוף המודול, כך שקריאה מוקדמת הייתה קוראת סביבה שעוד לא נטענה.</p>
+</blockquote>
+
+<p><strong><code>container.ts</code></strong> — שורש ההרכבה. Spring בונה את גרף התלויות מאנוטציות; כאן זה נעשה במפורש, פעם אחת, כך שכל הגרף קריא בקובץ אחד. מעבר מ-Gemini לספק אחר הוא שורה אחת כאן.</p>
+
+<div class="part">
+  <div class="kicker">חלק שלישי</div>
+  <h2>איך שמירה למסד באמת עובדת</h2>
+  <p>מהלחיצה על המפה ועד השורה ב-MongoDB — כל שלב, כל שדה, וכל מלכודת.</p>
+</div>
+
+<h2 id="s14"><span class="num">14</span>MongoDB ו-Mongoose</h2>
+
+<p><strong>MongoDB</strong> הוא מסד מסמכים. במקום טבלאות עם עמודות קבועות, הוא שומר <em>מסמכים</em> בפורמט דמוי JSON, ואוסף מסמכים נקרא <em>collection</em>. אין <code>CREATE TABLE</code> ואין מיגרציות כדי להוסיף שדה.</p>
+
+<p><strong>Mongoose</strong> היא ספרייה שמוסיפה מעל זה <em>סכמה</em> — הגדרה של אילו שדות קיימים, מאיזה טיפוס, ומה חובה. MongoDB עצמו לא יאכוף כלום; Mongoose כן.</p>
+
+<pre><code>// backend/src/config/db.ts
+await mongoose.connect(config.db.uri, {
+  dbName: config.db.name,
+  maxPoolSize: 10,              // עד 10 חיבורים במקביל
+  serverSelectionTimeoutMS: 10_000,  // 10 שניות ואז כישלון מפורש
+});</code></pre>
+
+<blockquote>
+  <p><strong>למה <code>maxPoolSize: 10</code>:</strong> פתיחת חיבור למסד יקרה. מאגר חיבורים שומר עשרה פתוחים וממחזר אותם, במקום לפתוח חיבור לכל בקשה. עשרה מספיקים בנוחות למכונה של 1GB.</p>
+  <p><strong>למה timeout מפורש:</strong> בלעדיו בקשה מול מסד שנפל תלויה ללא הגבלה. עשר שניות ואז שגיאה קריאה.</p>
+</blockquote>
+
+<p>שלושה collections: <code>hazards</code>, <code>users</code>, <code>logs</code>.</p>
+
+<h2 id="s15"><span class="num">15</span>הישות <code>Hazard</code>, שדה אחר שדה</h2>
+
+<p><code>backend/src/data/hazard.entity.ts</code>:</p>
+
+<pre><code>const hazardSchema = new Schema&lt;HazardEntity&gt;(
+  {
+    type:      { type: String, required: true, enum: HAZARD_TYPES },
+    latitude:  { type: Number, required: true, min: -90,  max: 90  },
+    longitude: { type: Number, required: true, min: -180, max: 180 },
+    location: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: undefined },
+    },
+    description:  { type: String, trim: true },
+    address:      { type: String, trim: true },
+    hazardPhotos: { type: [String], default: undefined },
+    status:       { type: String, enum: HAZARD_STATUSES, default: 'open' },
+    reportedBy:   { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  },
+  { timestamps: true }
+);</code></pre>
+
+<table>
+  <tr><th>שדה</th><th>מה נשמר</th><th>הערה</th></tr>
+  <tr><td><code>_id</code></td><td><code>ObjectId</code></td><td>נוצר אוטומטית — 12 בתים הכוללים חותמת זמן</td></tr>
+  <tr><td><code>type</code></td><td>מחרוזת מתוך 5</td><td><code>enum</code> נאכף ע"י Mongoose <em>וגם</em> ע"י Zod</td></tr>
+  <tr><td><code>latitude</code></td><td>מספר</td><td>טווח נאכף בסכמה, לא רק בוולידציה</td></tr>
+  <tr><td><code>longitude</code></td><td>מספר</td><td>—</td></tr>
+  <tr><td><code>location</code></td><td>GeoJSON Point</td><td><strong>שכפול מכוון</strong> — ראה פרק 16</td></tr>
+  <tr><td><code>description</code></td><td>מחרוזת</td><td><code>trim</code> מסיר רווחים בקצוות</td></tr>
+  <tr><td><code>address</code></td><td>מחרוזת</td><td>מגיע מ-Nominatim</td></tr>
+  <tr><td><code>hazardPhotos</code></td><td>מערך כתובות</td><td><strong>לא</strong> התמונות עצמן — ראה פרק 20</td></tr>
+  <tr><td><code>status</code></td><td><code>open</code>/<code>in_progress</code>/<code>resolved</code></td><td>ברירת מחדל <code>open</code></td></tr>
+  <tr><td><code>reportedBy</code></td><td><code>ObjectId</code> → <code>User</code></td><td>הפניה, לא העתק</td></tr>
+  <tr><td><code>createdAt</code></td><td>תאריך</td><td>נוצר ע"י <code>timestamps: true</code></td></tr>
+  <tr><td><code>updatedAt</code></td><td>תאריך</td><td>מתעדכן בכל שמירה</td></tr>
+</table>
+
+<p><code>default: undefined</code> על <code>hazardPhotos</code> אינו זהה להשמטה. בלעדיו Mongoose היה כותב <code>[]</code> לכל מפגע בלי תמונות — שדה מיותר בכל מסמך.</p>
+
+<h2 id="s16"><span class="num">16</span>הכפילות הגאוגרפית — ולמה היא מכוונת</h2>
+
+<p>המיקום נשמר <strong>פעמיים</strong>: פעם כ-<code>latitude</code>/<code>longitude</code> שטוחים, ופעם כאובייקט <code>location</code> בפורמט GeoJSON. זה נראה כמו טעות. זה לא.</p>
+
+<blockquote class="caution">
+  <p><strong>MongoDB יודע לחפש לפי מרחק רק על שדה GeoJSON עם אינדקס <code>2dsphere</code>.</strong> על שני מספרים רגילים אי אפשר לשאול "מה בתוך 50 מטר מכאן" — הוא היה חייב לסרוק כל מסמך ולחשב מרחק בעצמו.</p>
+</blockquote>
+
+<p>ולמה לא לוותר על השדות השטוחים ולהשאיר רק GeoJSON? כי הלקוח, המפה, וכל קוד קריאה רוצים <code>h.latitude</code>. לחלץ אותו מ-<code>location.coordinates[1]</code> בכל מקום היה מעיק ומועד לטעויות.</p>
+
+<blockquote class="stop">
+  <p><strong>המלכודת שחייבים לזכור:</strong> GeoJSON שומר <code>[longitude, latitude]</code> — <strong>קו אורך קודם</strong>. זה הפוך מהסדר שרוב האנשים כותבים. החלפה בין השניים לא זורקת שגיאה; היא פשוט מציבה את תל אביב באמצע סומליה.</p>
+</blockquote>
+
+<pre><code>this.location = { type: 'Point', coordinates: [this.longitude, this.latitude] };
+//                                              ^^^^^^^^^ אורך ראשון</code></pre>
+
+<h2 id="s17"><span class="num">17</span>האינדקסים — ומה כל אחד עושה</h2>
+
+<p><strong>אינדקס</strong> הוא מבנה נתונים נפרד ששומר את הערכים ממוינים, כך שהמסד ימצא שורה בלי לסרוק את כולן — כמו מפתח עניינים בסוף ספר. בלי אינדקס, שאילתה על מיליון מסמכים קוראת מיליון מסמכים.</p>
+
+<pre><code>hazardSchema.index({ location: '2dsphere' });
+hazardSchema.index({ status: 1, createdAt: -1 });
+hazardSchema.index({ reportedBy: 1, createdAt: -1 });</code></pre>
+
+<table>
+  <tr><th>אינדקס</th><th>משרת</th></tr>
+  <tr><td><code>location: '2dsphere'</code></td><td>שאילתות רדיוס. מחשב על <em>כדור</em>, לא על מישור — כלומר מרחקים נכונים על פני כדור הארץ</td></tr>
+  <tr><td><code>{status:1, createdAt:-1}</code></td><td>המפה ורשימת המנהל: סנן לפי סטטוס, מיין מהחדש לישן</td></tr>
+  <tr><td><code>{reportedBy:1, createdAt:-1}</code></td><td>"הדיווחים שלי"</td></tr>
+</table>
+
+<p><code>1</code> הוא סדר עולה, <code>-1</code> יורד. הסדר בתוך אינדקס מורכב חשוב: אינדקס על <code>{status, createdAt}</code> משרת שאילתה שמסננת לפי סטטוס וממיינת לפי תאריך; הפוך — לא.</p>
+
+<h4>איך נראית שאילתת הרדיוס בפועל</h4>
+
+<pre><code>// backend/src/repositories/hazard.repository.ts
+const EARTH_RADIUS_METERS = 6_378_100;
+
+Hazard.find({
+  status: { $in: UNRESOLVED_STATUSES },
+  location: {
+    $geoWithin: {
+      $centerSphere: [[longitude, latitude], radiusMeters / EARTH_RADIUS_METERS],
+    },
+  },
+})</code></pre>
+
+<p><code>$centerSphere</code> מקבל את הרדיוס ב<strong>רדיאנים</strong>, לא במטרים — ומכאן החלוקה ברדיוס כדור הארץ. 50 מטר הופכים ל-<code>0.00000784</code> רדיאן. החישוב הזה קיים במקום אחד בדיוק בכל בסיס הקוד.</p>
+
+<h2 id="s18"><span class="num">18</span>מסע של דיווח אחד</h2>
+
+<p>מה קורה מהרגע שאדם לוחץ "שלח" ועד שהשורה קיימת במסד. זה המסלול המלא.</p>
+
+<div class="flow">
+[1] הדפדפן                POST /hazards
+    hazardService.ts       { type, latitude, longitude, description, hazardPhotos:[base64] }
+         │
+[2] routes/hazard.routes.ts
+         │  requireAuth      → אין טוקן תקף? 401, נעצר כאן
+         │  validate(schema) → קו רוחב 91? 400, נעצר כאן
+         ▼
+[3] controllers/hazard.controller.ts
+         │  await this.hazards.create(req.body, req.user)
+         ▼
+[4] logic/impl/hazards.service.impl.ts  ★ כאן כל הכללים ★
+         │
+         │  4a. assertNotDuplicate()
+         │      └─▶ repositories → $geoWithin ברדיוס 50 מ׳
+         │          ├── אותו סוג נמצא?      → ConflictException 409  ✖ נעצר
+         │          ├── סוג אחר בסביבה?     → ai-service מכריע
+         │          │                          לא זמין? ממשיכים (fail open)
+         │          └── כלום בסביבה?         → ממשיכים
+         │
+         │  4b. photos.saveMany()
+         │      └─▶ sharp: סיבוב EXIF → הקטנה ל-1600px → WebP
+         │          מחזיר ["/uploads/1755...-a3f9.webp"]
+         │
+         │  4c. hazards.create()   ← רק עכשיו נוגעים במסד
+         ▼
+[5] repositories/hazard.repository.ts
+         │  Hazard.create(data)
+         ▼
+[6] data/hazard.entity.ts
+         │  pre('save') → location = { type:'Point', coordinates:[lng, lat] }
+         │  timestamps  → createdAt, updatedAt
+         │  enum/min/max נאכפים
+         ▼
+    ┌──────────────── MongoDB ────────────────┐
+    │  db.hazards.insertOne({ ... })          │
+    │  שלושת האינדקסים מתעדכנים               │
+    └─────────────────────────────────────────┘
+         │
+[7] repository קורא מחדש עם populate('reportedBy')
+         ▼
+[8] converters/hazard.converter.ts
+         │  location ו-__v לא עוברים
+         │  נתיב תמונה → URL מלא
+         ▼
+[9] events → SSE 'hazard:created' לכל הטאבים הפתוחים
+         ▼
+[10] 201 Created + HazardBoundary
+</div>
+
+<blockquote class="note">
+  <p><strong>שימו לב לסדר בשלב 4.</strong> בדיקת הכפילות רצה <em>לפני</em> שנשמרת תמונה ולפני שנכתב משהו למסד. דיווח כפול לא מבזבז מקום בדיסק.</p>
+</blockquote>
+
+<h4>ומה אם השמירה נכשלת אחרי שהתמונות כבר נכתבו</h4>
+
+<pre><code>let created: HazardEntity;
+try {
+  created = await this.hazards.create({ ... });
+} catch (err) {
+  if (storedPhotos?.length) await this.photos.removeMany(storedPhotos);
+  throw err;
+}</code></pre>
+
+<p>בלי זה, כל כישלון כתיבה היה משאיר קבצים על הדיסק שאף שורה במסד לא מצביעה אליהם — דליפה שגדלה לאט ואף אחד לא מבחין בה.</p>
+
+<h4>המסמך שנוצר בפועל</h4>
+
+<pre><code>{
+  "_id":         ObjectId("66bd12f4a1c2e3d4f5a6b7c8"),
+  "type":        "pothole",
+  "latitude":    32.0798,
+  "longitude":   34.7739,
+  "location":    { "type": "Point", "coordinates": [34.7739, 32.0798] },
+  "description": "בור עמוק בנתיב הימני",
+  "address":     "דיזנגוף 120, תל אביב",
+  "hazardPhotos":["/uploads/1755162412-a3f9c1.webp"],
+  "status":      "open",
+  "reportedBy":  ObjectId("66bc01aa9f8e7d6c5b4a3928"),
+  "createdAt":   ISODate("2026-08-14T09:06:52.411Z"),
+  "updatedAt":   ISODate("2026-08-14T09:06:52.411Z"),
+  "__v":         0
+}</code></pre>
+
+<h2 id="s19"><span class="num">19</span>ה-hook והמלכודת</h2>
+
+<pre><code>hazardSchema.pre('save', function (this: HazardEntity) {
+  if (this.latitude != null && this.longitude != null) {
+    this.location = { type: 'Point', coordinates: [this.longitude, this.latitude] };
+  }
+});</code></pre>
+
+<p>ה-hook מבטיח ש-<code>location</code> תמיד תואם ל-lat/lng. אבל יש בו מגבלה שחייבים להכיר:</p>
+
+<blockquote class="stop">
+  <p><strong><code>pre('save')</code> רץ רק על <code>.save()</code>.</strong> אופרטורים אטומיים כמו <code>findOneAndUpdate</code> או <code>updateOne</code> <em>עוקפים אותו לחלוטין</em>. עדכון קואורדינטות דרכם היה משאיר את <code>location</code> על הערך הישן — והמפגע היה ממשיך להופיע בחיפושי רדיוס במקום הקודם שלו, בלי שום שגיאה.</p>
+</blockquote>
+
+<p>לכן <code>HazardRepository.save()</code> מקבל מסמך מלא וקורא <code>doc.save()</code>, ולא מקצר דרך:</p>
+
+<pre><code>async save(doc: HazardEntity): Promise&lt;HazardEntity&gt; {
+  await doc.save();
+  const populated = await this.findById(doc._id.toString());
+  return populated ?? doc;
+}</code></pre>
+
+<p>המחיר: שתי פניות למסד במקום אחת. התמורה: <code>location</code> לא יכול לצאת מסנכרון.</p>
+
+<blockquote>
+  <p>אותו עיקרון בכיוון ההפוך: ה-seeder <em>כן</em> משתמש ב-<code>Hazard.collection.updateOne</code> — הדרייבר הנייטיב, מתחת ל-Mongoose — כי הוא צריך לתארך דיווחים אחורה, ו-<code>timestamps: true</code> היה דורס כל ניסיון לקבוע <code>createdAt</code> ידנית.</p>
+</blockquote>
+
+<h2 id="s20"><span class="num">20</span>תמונות — למה הן לא במסד</h2>
+
+<p>בגרסה הראשונה התמונות נשמרו כ-base64 בתוך המסמך. שלוש בעיות:</p>
+
+<ol>
+  <li><strong>תקרת 16MB.</strong> למסמך ב-MongoDB יש גודל מרבי. תמונת טלפון היא כ-1.5MB ב-base64; כמה תמונות לדיווח והתקרה מתקרבת.</li>
+  <li><strong>Atlas M0 החינמי מוגבל ל-512MB.</strong> כמאה דיווחים והוא מלא.</li>
+  <li><strong>כל קריאת רשימה משכה מגה-בייטים.</strong> המפה מושכת עד 500 מפגעים; התמונות נזרקו מיד.</li>
+</ol>
+
+<p>הפתרון: <code>sharp</code> דוחס לקובץ WebP על הדיסק, ורק הכתובת נשמרת.</p>
+
+<pre><code>const webp = await sharp(buffer, { failOn: 'none' })
+  .rotate()                                    // כבד את דגל הכיוון של EXIF
+  .resize({ width: 1600, height: 1600,
+            fit: 'inside', withoutEnlargement: true })
+  .webp({ quality: 80 })
+  .toBuffer();
+
+const filename = `${Date.now()}-${randomUUID()}.webp`;</code></pre>
+
+<p>1.5MB הופכים לכ-150KB — כעשירית. ובכל שאילתת רשימה, ה-repository מוציא את השדה מראש:</p>
+
+<pre><code>const WITHOUT_PHOTOS = '-hazardPhotos';   // המינוס = אל תחזיר את השדה הזה</code></pre>
+
+<blockquote class="note">
+  <p><strong>הסרת המטא-דאטה היא לא רק חיסכון במקום.</strong> תמונות מטלפון נושאות EXIF ובו <strong>קואורדינטות GPS</strong>, והתמונות האלה מוצגות בפומבי על מפה. הדיווח כבר נושא קואורדינטות מפורשות; אין שום סיבה לפרסם בנוסף את הנקודה המדויקת שבה המדווח עמד. <code>sharp</code> משמיט את כל המטא-דאטה אלא אם קוראים ל-<code>withMetadata()</code> — ולא קוראים.</p>
+  <p><code>.rotate()</code> חייב לרוץ <em>לפני</em> שהמטא-דאטה נזרקת, אחרת תמונות שצולמו לאורך יופיעו מסובבות.</p>
+</blockquote>
+
+<h2 id="s21"><span class="num">21</span><code>Users</code> ו-<code>Logs</code></h2>
+
+<pre><code>const userSchema = new Schema&lt;UserEntity&gt;({
+  email:    { type: String, required: true, unique: true, trim: true, lowercase: true },
+  password: { type: String, required: true, minlength: 6, select: false },
+  name:     { type: String, trim: true },
+  role:     { type: String, enum: USER_ROLES, default: 'user' },
+}, { timestamps: true });</code></pre>
+
+<table>
+  <tr><th>מאפיין</th><th>מה הוא מונע</th></tr>
+  <tr><td><code>unique: true</code></td><td>שני חשבונות לאותו מייל. נאכף ע"י אינדקס ייחודי במסד</td></tr>
+  <tr><td><code>lowercase: true</code></td><td><code>Alon@x.com</code> ו-<code>alon@x.com</code> כשני משתמשים</td></tr>
+  <tr><td><code>select: false</code></td><td><strong>קריאה רגילה לא טוענת את הגיבוב כלל</strong></td></tr>
+</table>
+
+<p><code>select: false</code> הוא ההגנה הראשונה: <code>find()</code> רגיל לא מחזיר את הסיסמה, ושאילתה שכן צריכה אותה חייבת לבקש במפורש <code>.select('+password')</code>. ההגנה השנייה היא <code>user.converter.ts</code>, שבונה את ה-Boundary שדה-שדה — כך שגם אם הגיבוב נטען, אין לו לאן לדלוף.</p>
+
+<p>הסיסמה עצמה נשמרת כגיבוב <code>bcrypt</code>, לעולם לא כטקסט.</p>
+
+<p><strong><code>logs</code></strong> — שובל ביקורת. <code>userId</code>, <code>action</code>, <code>resource</code>, <code>resourceId</code>, <code>details</code>, ושלושה אינדקסים לפי דפוסי השאילתה.</p>
+
+<div class="part">
+  <div class="kicker">חלק רביעי</div>
+  <h2>ה-Frontend</h2>
+  <p>אותו שלד כמו ב-SmartCollect, בטיפוסים.</p>
+</div>
+
+<h2 id="s22"><span class="num">22</span><code>core/</code>, <code>services/</code>, <code>pages/</code></h2>
+
+<table>
+  <tr><th>SmartCollect</th><th>CityScan</th><th>תוכן</th></tr>
+  <tr><td><code>core/config.js</code></td><td><code>core/config.ts</code></td><td><code>API_BASE</code>, <code>AI_SERVICE_BASE</code>, <code>IS_DEMO</code></td></tr>
+  <tr><td><code>core/http.js</code></td><td><code>core/http.ts</code></td><td><code>apiFetch</code>, <code>getAuthHeader</code>, <code>api</code></td></tr>
+  <tr><td><code>core/session.js</code></td><td><code>core/session.ts</code></td><td>טוקן ומשתמש ב-<code>localStorage</code></td></tr>
+  <tr><td>—</td><td><code>core/demoVault.ts</code></td><td>מחסן הדמו</td></tr>
+  <tr><td><code>services/userService.js</code></td><td><code>services/authService.ts</code></td><td>התחברות, הרשמה</td></tr>
+  <tr><td><code>services/objectService.js</code></td><td><code>services/hazardService.ts</code></td><td>כל קריאות המפגעים + הטיפוסים</td></tr>
+  <tr><td><code>services/commandService.js</code></td><td><code>services/aiService.ts</code></td><td>ניתוח תמונה</td></tr>
+</table>
+
+<p>שלושה כללים הועתקו מהמקור:</p>
+
+<ol>
+  <li><strong><code>core/</code> לא יודע כלום על הדומיין.</strong> ולכן <code>UNRESOLVED</code>, <code>DUPLICATE_RADIUS_METERS</code> ו-<code>distanceMeters</code> יושבים ב-<code>hazardService.ts</code> ולא ב-<code>config.ts</code>. <code>core/config.ts</code> לא יודע מה זה בור.</li>
+  <li><strong>שם השירות = שם ה-boundary בשרת.</strong> <code>UserBoundary</code>→<code>userService</code>, ולכן <code>authService</code>, <code>hazardService</code>, <code>aiService</code>.</li>
+  <li><strong>שירות מחזיק את כל הדומיין שלו</strong>, לא רק קריאות HTTP — כמו ש-<code>objectService.js</code> מחזיק גם <code>buildBin</code> וגם <code>binTypeColor</code>.</li>
+</ol>
+
+<p><code>components/</code> ו-<code>contexts/</code> הן התוספת היחידה מעבר לשלד, כי React דורש אותן. <code>AuthContext</code> דק בכוונה: הוא לא מחזיק מפתחות אחסון ולא נוגע ב-<code>localStorage</code> בעצמו — <code>core/session</code> הוא הבעלים היחיד — הוא רק משקף אותו ל-state כדי שהעץ ירונדר מחדש בהתחברות וביציאה.</p>
+
+<h2 id="s23"><span class="num">23</span>מצב הדמו</h2>
+
+<p>הפריסה הציבורית ב-Vercel רצה <strong>בלי Backend כלל</strong>. <code>VITE_IS_DEMO=true</code> מפעיל את <code>core/demoVault.ts</code>: כל כתיבה הולכת ל-<code>localStorage</code> וכל קריאה חוזרת משם, זרוע מ-15 המפגעים שב-<code>data/demoFixtures.ts</code>.</p>
+
+<p>הזריעה מתרחשת <strong>רק כשהמפתח נעדר</strong>, לא כשהוא מפרש לקבוצה ריקה. מבקר שמחק את כל המפגעים משאיר רשומות עם ערך <code>null</code> — המפתח קיים, ואסור לזרוע מחדש, אחרת מחיקה הייתה נראית כאילו לא עשתה כלום.</p>
+
+<table>
+  <tr><th>יכולת</th><th>בדמו</th></tr>
+  <tr><td>דיווח, עריכה, מחיקה</td><td>עובד, נשמר בדפדפן</td></tr>
+  <tr><td>חסימת כפילות — רמה 1</td><td><strong>עובד</strong>, מחושב בדפדפן</td></tr>
+  <tr><td>חסימת כפילות — רמה 2</td><td>לא זמין — דורש מפתח LLM</td></tr>
+  <tr><td>תיאור תמונה ב-AI</td><td>לא זמין — אותה סיבה</td></tr>
+</table>
+
+<blockquote class="caution">
+  <p><strong>למה רמה 2 לא יכולה לרוץ בדפדפן:</strong> כל משתנה שמתחיל ב-<code>VITE_</code> <em>מוטמע לתוך ה-JavaScript שנשלח</em>. מפתח API בחבילת Vite הוא מפתח מפורסם. לכן הדמו אומר את זה במפורש במקום לירות בקשות לשרת שאינו קיים ולהיראות תקוע.</p>
+</blockquote>
+
+<div class="part">
+  <div class="kicker">חלק חמישי</div>
+  <h2>הכלים</h2>
+  <p>מה כל אחד עושה, כמה הוא עולה, ולמה נבחר.</p>
+</div>
+
+<h2 id="s24"><span class="num">24</span>הכלים, אחד אחד</h2>
+
+<h3>Vercel — אירוח ה-Frontend</h3>
+<p>פלטפורמה שמארחת אתרים סטטיים. מחוברת ל-GitHub: כל דחיפה ל-<code>main</code> בונה ומפרסת אוטומטית. <strong>חינם</strong> בתוכנית Hobby.</p>
+<p>נדרש <code>vercel.json</code> אחד, כי CityScan היא SPA — ניווט ל-<code>/login</code> מטופל ב-JavaScript, אבל טעינה ישירה של הכתובת מבקשת מהשרת קובץ שאינו קיים. בלי ההפניה, כל כתובת פנימית מחזירה 404:</p>
+<pre><code>{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }</code></pre>
+<p><strong>Instant Rollback</strong> מחזיר את הפריסה הקודמת מיידית, בלי git ובלי בנייה מחדש. זו רשת הביטחון האמיתית.</p>
+
+<h3>Azure — אירוח ה-Backend</h3>
+<p>ענן של Microsoft. Azure for Students נותן <strong>$100 קרדיט בלי כרטיס אשראי</strong> ובנוסף <strong>750 שעות חודשיות של מכונה burstable בחינם ל-12 חודשים</strong> — משרה מלאה, כך שהקרדיט כמעט לא נגמס.</p>
+<blockquote class="caution">
+  <p><strong>שתי נקודות שנבדקו ומשנות את התכנון:</strong></p>
+  <p><strong>1.</strong> <code>B1s</code> מיועד לגריעה ב-2028 ו-Microsoft כבר חוסמת יצירה שלו במנויי סטודנטים רבים. התחליף הוא <code>Standard_B2ats_v2</code> — מכוסה באותן 750 שעות, ולמעשה חזק יותר: 2 vCPU במקום 1. חשוב לבחור את גרסת ה-AMD (<code>B2ats</code>) ולא את גרסת ה-ARM (<code>B2pts</code>), אחרת צריך לבנות מחדש את כל ה-Docker images ל-arm64.</p>
+  <p><strong>2.</strong> <strong>כתובת IPv4 ציבורית אינה חינם</strong> — כ-$3.65 לחודש, כ-$44 לשנה. זו ההוצאה היחידה, ויש מקום בקרדיט.</p>
+</blockquote>
+
+<h3>Docker — אריזה</h3>
+<p>אורז אפליקציה יחד עם כל התלויות שלה ל<em>קונטיינר</em> שרץ זהה בכל מקום. פותר את "אצלי זה עבד".</p>
+<p>הבדל מ-SmartCollect: שם Docker Desktop הריץ את <strong>מסד הנתונים</strong> בזמן פיתוח, והאפליקציה רצה מחוץ לו. כאן הוא ירוץ בייצור ויארוז את <strong>האפליקציה עצמה</strong> — backend, ai-service ו-proxy, שלושה קונטיינרים על אותה מכונה.</p>
+
+<h3>MongoDB Atlas — המסד המנוהל</h3>
+<p>MongoDB כשירות. רובד <strong>M0 חינם לנצח</strong> — 512MB. מספיק בנוחות מרגע שהתמונות עברו לדיסק. גיבויים וניטור כלולים.</p>
+
+<h3>DuckDNS + Nginx Proxy Manager — דומיין ו-HTTPS</h3>
+<p><strong>DuckDNS</strong> נותן תת-דומיין חינם (<code>cityscan.duckdns.org</code>) שמצביע לכתובת ה-IP של השרת.</p>
+<p><strong>Nginx Proxy Manager</strong> הוא <em>reverse proxy</em> — שרת שיושב בחזית, מקבל את כל התעבורה, ומפנה כל בקשה לקונטיינר הנכון. הוא גם משיג תעודת HTTPS מ-Let's Encrypt אוטומטית ומחדש אותה לבד.</p>
+<blockquote class="stop">
+  <p><strong>הגדרה אחת שאסור לשכוח:</strong> <code>proxy_buffering off</code> על <code>/hazards/stream</code>. בלעדיה nginx צובר את אירועי ה-SSE בבאפר וממתין שיתמלא — והאירועים לא מגיעים ללקוח לעולם.</p>
+</blockquote>
+
+<h3>GitHub Actions — CI ותזמון</h3>
+<p>מריץ קוד אוטומטית באירועי מאגר. <strong>חינם וללא הגבלה במאגר ציבורי.</strong> שני workflows:</p>
+<ul>
+  <li><code>ci.yml</code> — בכל דחיפה: בונה ובודק את ה-Backend (46 בדיקות), בונה את ה-Frontend, ומוודא שה-ai-service נטען.</li>
+  <li><code>demo-reset.yml</code> — מחזיר את הדמו למצב הזרוע. <strong>התזמון מושבת כרגע</strong> ורק הרצה ידנית פעילה, כי אין עדיין Backend לאפס. הוא נכשל כל לילה ארבע פעמים עד שהוסר.</li>
+</ul>
+
+<h3>n8n — ולמה הוא לא בייצור</h3>
+<p>כלי אוטומציה חזותי: בונים תהליכים מגרירת בלוקים במקום לכתוב קוד. <strong>הוחלט לא להשתמש בו בייצור, משתי סיבות נפרדות:</strong></p>
+<ol>
+  <li><strong>זיכרון.</strong> למכונה יש 1GB; n8n לבדו רוצה כ-400MB. לא היה נשאר מקום ל-backend, ל-ai-service, ל-proxy ולמערכת ההפעלה. האיפוס הלילי עבר ל-GitHub Actions, שחינמי ולא צורך מהשרת כלום.</li>
+  <li><strong>ארכיטקטורה.</strong> זיהוי הכפילויות נשאר ב-<code>logic/</code> ולא הועבר ל-n8n, כי הוא על הנתיב הקריטי — המשתמש ממתין ל-201 או 409. העברה לכלי חיצוני הייתה אומרת שאי אפשר לדווח כשהכלי למטה.</li>
+</ol>
+<p>אפשר להריץ אותו מקומית אם רוצים אותו לסיפור הפורטפוליו.</p>
+
+<h3>Gemini — ה-LLM</h3>
+<p>המודל של Google. משמש לשני דברים: הכרעת כפילויות ברמה 2, ותיאור אוטומטי של תמונת מפגע. הרובד החינמי מספיק בקלות.</p>
+<blockquote class="caution">
+  <p><strong>שיעור מהדרך:</strong> <code>gemini-1.5-flash</code> נגרע והחזיר 404. אחר כך גם <code>gemini-2.5-flash</code> החזיר 404 — <em>למרות שהופיע ברשימת המודלים</em>, כי הוא כבר לא נפתח למשתמשים חדשים. הרשימה אינה מקור אמת; חייבים לבדוק בפועל.</p>
+</blockquote>
+
+<h3>Leaflet · CARTO · Nominatim — המפה</h3>
+<ul>
+  <li><strong>Leaflet</strong> — ספריית המפות. חינם, בלי מפתח, בלי מכסה.</li>
+  <li><strong>CARTO Voyager</strong> — אריחי המפה. אותו מידע כמו OpenStreetMap בפלטה מאופקת, כדי שסמני המפגעים יבלטו במקום להתחרות בצבעי הכבישים.</li>
+  <li><strong>Nominatim</strong> — המרה בין כתובת לקואורדינטות ולהפך. חינם, בלי מפתח.</li>
+</ul>
+<p><strong>Google Maps נשקל ונדחה:</strong> דורש חשבון חיוב, ומאז מרץ 2025 זה 10,000 טעינות בחודש ואז כ-$7 לכל 1,000. כשהמכסה נגמרת המפה מתה עד חצות.</p>
+<blockquote class="note">
+  <p>שמונת אייקוני הסמנים <strong>מאוחסנים אצלנו</strong> ב-<code>frontend/public/markers/</code>. קודם הם נמשכו מ-<code>raw.githubusercontent.com</code> — 28 תמונות משרתים זרים בכל טעינה. הכתובת ההיא <strong>אינה CDN</strong>: היא מגישה קבצים גולמיים לצורך עיון, ו-GitHub מגבילה עליה קצב. ביום שזה היה קורה, כל סמן על המפה היה נעלם בלי שאיש נגע בקוד.</p>
+</blockquote>
+
+<h3>הספריות שעושות את העבודה</h3>
+<table>
+  <tr><th>ספרייה</th><th>תפקיד</th></tr>
+  <tr><td><code>zod</code></td><td>ולידציה + גזירת טיפוסים מאותה הגדרה</td></tr>
+  <tr><td><code>mongoose</code></td><td>סכמות, אינדקסים ו-hooks מעל MongoDB</td></tr>
+  <tr><td><code>sharp</code></td><td>דחיסה ל-WebP והסרת EXIF</td></tr>
+  <tr><td><code>jsonwebtoken</code></td><td>JWT — טוקן חתום שמוכיח מי המשתמש</td></tr>
+  <tr><td><code>bcrypt</code></td><td>גיבוב סיסמאות, איטי בכוונה</td></tr>
+  <tr><td><code>express-rate-limit</code></td><td>הגבלת קצב</td></tr>
+  <tr><td><code>vitest</code> + <code>mongodb-memory-server</code></td><td>46 בדיקות מול <code>mongod</code> אמיתי שנוצר מחדש בכל הרצה</td></tr>
+</table>
+
+<div class="part">
+  <div class="kicker">חלק שישי</div>
+  <h2>הרצה</h2>
+</div>
+
+<h2 id="s25"><span class="num">25</span>הרצה מקומית</h2>
+
+<pre><code># התקנה
+npm install --prefix backend
+npm install --prefix frontend
+npm install
+
+# מסד מקומי — פעם אחת אחרי כל אתחול של המחשב
+npm run db:up --prefix backend
+npm run seed:demo --prefix backend
+
+# שלושת השירותים
+npm run dev</code></pre>
+
+<p>פתח <code>http://localhost:5173</code> ולחץ <strong>Sign in as Admin (Demo)</strong> — בלי הרשמה.</p>
+
+<p>כדי לראות את חסימת הכפילויות: לחץ על המפה ברחוב דיזנגוף במקום שכבר יש בו סמן, ודווח על <strong>בור</strong> נוסף. הדיווח נדחה.</p>
+
+<h4>הרצת ה-Frontend כמו בפריסה החיה</h4>
+<pre><code>npx cross-env VITE_IS_DEMO=true npm run dev</code></pre>
+<p>זו התצורה המדויקת ש-Vercel מריץ. <strong>בנייה נקייה אינה מוכיחה שהיא עובדת</strong> — צריך להריץ ולבדוק: התחברות דמו, 12 סמנים, חסימת הכפילות בדיזנגוף, פאנל הניהול, ואפס שגיאות בקונסולה.</p>
+
+<h4>הבדיקות</h4>
+<pre><code>npm test --prefix backend</code></pre>
+<p>46 בדיקות אינטגרציה מול <code>mongod</code> אמיתי שנוצר מחדש לכל הרצה דרך <code>mongodb-memory-server</code> — בלי Docker, בלי נתונים משותפים בין מקרים.</p>
+
+<hr>
+
+<p style="color:var(--muted);font-size:.9rem">
+  המסמך הזה נכתב מול הקוד ולא מהזיכרון. כל קטע קוד כאן הועתק מהקובץ שצוין לידו במצב <code>main</code> @ <code>456894a</code>.
+</p>
+
+</div>
+
+</body>
+</html>
