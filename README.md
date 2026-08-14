@@ -251,9 +251,22 @@ AI path exercising its fail-open branch.
 
 ## Demo deployment
 
-The public demo resets to its seeded state nightly, so visitors can file, edit and
-delete freely without the map drifting. Scheduled from GitHub Actions —
-see [`docs/demo-reset-schedule.md`](docs/demo-reset-schedule.md).
+**The live demo runs entirely in the browser.** No backend is deployed yet, so the
+frontend serves the same fifteen seeded hazards from a bundled fixture and keeps a
+visitor's own reports in `localStorage`. File a report, change a status, delete one —
+it all works, it is all yours alone, and it is gone when you clear site data. The
+fixtures are shared with the backend seeder and a test asserts the two cannot drift.
+
+Two things are honestly unavailable in that mode: photo description needs the AI
+service, and tier-two duplicate adjudication needs an LLM. Tier one — the geospatial
+50 m check — runs client-side, so reporting a second pothole on Dizengoff is still
+rejected. That is the part worth seeing anyway: it is deterministic, and it is what
+answers the request without an API call.
+
+Once the backend is deployed, a nightly GitHub Actions job returns the shared demo to
+its seeded state so the map does not drift into whatever the last visitor left behind.
+The workflow is written and its schedule is commented out until there is a server to
+point it at — see [`docs/demo-reset-schedule.md`](docs/demo-reset-schedule.md).
 
 The reset endpoint is the most destructive thing in the codebase, so it is not
 registered at all unless `DEMO_RESET_ENABLED=true`, and requires a shared secret

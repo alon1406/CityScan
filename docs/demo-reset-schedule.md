@@ -1,5 +1,13 @@
 # Scheduled demo reset
 
+> **Status: the schedule is switched off.** There is no deployed backend yet, so
+> `DEMO_RESET_URL` and `DEMO_RESET_TOKEN` are not set and every scheduled run failed on
+> the guard — four for four, from 11 August 2026, each in under ten seconds. The `cron`
+> line is commented out in the workflow and `workflow_dispatch` is left enabled. Restore
+> it in the same commit that sets the two secrets, in stage 3.4 of the deployment plan.
+>
+> Everything below describes the reset as it works once that happens.
+
 The public demo is open to anyone. Visitors file reports, change statuses and delete
 hazards, and uploaded photos accumulate on a small disk. A nightly reset returns the
 deployment to its seeded state, so the demo is always presentable and the disk never
@@ -79,8 +87,11 @@ secrets rather than in the workflow file.
 in summer and 03:00 in winter. Both are quiet hours, which is the point: a reset should
 never fire while someone is mid-session looking at the demo.
 
-`workflow_dispatch` is also enabled, so you can trigger a reset by hand from the Actions
-tab right before showing the project to someone.
+**Currently commented out** — see the status note at the top of this file.
+
+`workflow_dispatch` is enabled either way, so you can trigger a reset by hand from the
+Actions tab right before showing the project to someone. Use it once, and confirm it
+returns 200, before uncommenting the schedule and trusting it to run unattended.
 
 **Caveat worth knowing:** GitHub disables scheduled workflows in a public repository
 after 60 days without repository activity. If the project goes quiet for two months the

@@ -12,13 +12,24 @@ name: Nightly demo reset
 # endpoint is identical either way — see docs/demo-reset-schedule.md.
 
 on:
-  schedule:
-    # 01:00 UTC. GitHub cron is always UTC, so this is 04:00 in Israel during summer
-    # time and 03:00 in winter — a quiet hour either way, which is the point: a reset
-    # should never land mid-session while someone is looking at the demo.
-    - cron: '0 1 * * *'
+  # The nightly schedule is deliberately absent until the backend is deployed.
+  #
+  # It was here, set to '0 1 * * *', and it failed every night from 11 August 2026:
+  # there is no backend to reset yet, so DEMO_RESET_URL and DEMO_RESET_TOKEN are not
+  # set as repository secrets and the guard below exits 1 within nine seconds. A job
+  # scheduled against a server that does not exist is not a broken job — it is a job
+  # that should not have been scheduled.
+  #
+  # Restore it in the same commit that sets the two secrets (see stage 3.4):
+  #
+  #   schedule:
+  #     # 01:00 UTC — 04:00 in Israel in summer, 03:00 in winter. A quiet hour either
+  #     # way, which is the point: a reset should never land mid-session while someone
+  #     # is looking at the demo.
+  #     - cron: '0 1 * * *'
 
-  # Lets you reset by hand right before showing the project to someone.
+  # Lets you reset by hand right before showing the project to someone. Kept enabled:
+  # once the secrets exist this is how you verify the endpoint before trusting the cron.
   workflow_dispatch:
 
 # Never let two resets overlap. A second run while the first is mid-wipe would seed
