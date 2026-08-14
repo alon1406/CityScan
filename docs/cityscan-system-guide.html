@@ -79,8 +79,38 @@
   .toc ol{margin:0;padding-inline-start:1.3rem;font-size:.93rem;columns:2;column-gap:2rem}
   .toc li{margin:.25rem 0;break-inside:avoid}
 
-  .flow{font-family:var(--mono);font-size:.8rem;line-height:1.9;direction:ltr;text-align:left;
-    background:var(--code-bg);border:1px solid var(--line);border-radius:.6rem;padding:1.1rem;overflow-x:auto;margin:1.2rem 0}
+  /* Diagrams are SVG, not ASCII art.
+     Box-drawing characters are bidi-neutral: inside an RTL document the algorithm
+     reorders whole segments of them and the arrows end up pointing at nothing.
+     SVG has explicit coordinates, so bidi never touches it. */
+  .diagram{
+    margin:1.6rem 0;background:var(--surface);border:1px solid var(--line);
+    border-radius:.6rem;padding:1.1rem .9rem
+  }
+  /* Two rules keep bidi out of the diagrams entirely:
+     `direction:ltr` on the svg, because text-anchor is resolved against the
+     inherited direction — under RTL, "end" anchors on the left and labels slide
+     off the far edge; and text-anchor="middle" on every label, which is the one
+     anchor that means the same thing in both directions. */
+  .diagram svg{width:100%;height:auto;display:block;direction:ltr}
+  /* text-anchor:middle is the one anchor that means the same thing in both
+     directions. unicode-bidi:plaintext then lets each label pick its own base
+     direction from its first strong character, so a Hebrew caption keeps its
+     question mark on the correct side without dragging the Latin ones with it. */
+  .diagram text{text-anchor:middle;unicode-bidi:plaintext}
+  .diagram .cap{
+    text-align:center;font-size:.8rem;color:var(--muted);margin:.7rem 0 0;
+    padding-top:.6rem;border-top:1px solid var(--line)
+  }
+  .d-box{fill:var(--surface);stroke:var(--ink);stroke-width:1.5}
+  .d-box-accent{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2}
+  .d-box-db{fill:var(--code-bg);stroke:var(--muted);stroke-width:1.5}
+  .d-t{fill:var(--ink);font-family:var(--sans);font-size:14px;font-weight:600}
+  .d-s{fill:var(--muted);font-family:var(--mono);font-size:11px}
+  .d-lbl{fill:var(--accent);font-family:var(--mono);font-size:11.5px}
+  .d-line{stroke:var(--ink);stroke-width:1.6;fill:none}
+  .d-line-soft{stroke:var(--muted);stroke-width:1.3;fill:none;stroke-dasharray:4 3}
+  .d-no{fill:var(--accent);font-family:var(--mono);font-size:12px;font-weight:700}
 
   @media print{
     :root{
@@ -176,18 +206,53 @@
 
 <h2 id="s02"><span class="num">02</span>שלושת השירותים</h2>
 
-<div class="flow">
-┌──────────────┐   REST + SSE   ┌──────────────┐   X-API-Key   ┌──────────────┐
-│  frontend/   │ ─────────────▶ │   backend/   │ ────────────▶ │ ai-service/  │
-│ React 19     │ ◀───────────── │  Express 5   │ ◀──────────── │  FastAPI     │
-│ Vite·Leaflet │                │  TypeScript  │               │  Gemini      │
-└──────────────┘                └──────┬───────┘               └──────────────┘
-                                       │
-                                       ▼
-                               ┌──────────────┐
-                               │   MongoDB    │
-                               │ 2dsphere idx │
-                               └──────────────┘
+<div class="diagram">
+<svg viewBox="0 0 780 310" role="img" aria-label="שלושת השירותים והמסד">
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/>
+    </marker>
+    <marker id="a1s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+
+  <rect class="d-box" x="555" y="34" width="200" height="94" rx="8"/>
+  <text class="d-t" x="655" y="62">frontend/</text>
+  <text class="d-s" x="655" y="84">React 19 · Vite</text>
+  <text class="d-s" x="655" y="102">Leaflet</text>
+  <text class="d-s" x="655" y="120">TypeScript</text>
+
+  <rect class="d-box-accent" x="290" y="34" width="200" height="94" rx="8"/>
+  <text class="d-t" x="390" y="62">backend/</text>
+  <text class="d-s" x="390" y="84">Express 5</text>
+  <text class="d-s" x="390" y="102">TypeScript</text>
+  <text class="d-lbl" x="390" y="120">GEMINI_API_KEY</text>
+
+  <rect class="d-box" x="25" y="34" width="200" height="94" rx="8"/>
+  <text class="d-t" x="125" y="62">ai-service/</text>
+  <text class="d-s" x="125" y="84">FastAPI</text>
+  <text class="d-s" x="125" y="102">Gemini</text>
+
+  <line class="d-line" x1="551" y1="81" x2="498" y2="81" marker-end="url(#a1)"/>
+  <line class="d-line" x1="498" y1="99" x2="551" y2="99" marker-end="url(#a1)"/>
+  <text class="d-lbl" x="524" y="62">REST</text>
+  <text class="d-lbl" x="524" y="124">SSE</text>
+
+  <line class="d-line" x1="286" y1="81" x2="233" y2="81" marker-end="url(#a1)"/>
+  <line class="d-line" x1="233" y1="99" x2="286" y2="99" marker-end="url(#a1)"/>
+  <text class="d-lbl" x="259" y="62">X-API-Key</text>
+
+  <line class="d-line" x1="390" y1="128" x2="390" y2="196" marker-end="url(#a1)"/>
+  <rect class="d-box-db" x="290" y="200" width="200" height="72" rx="8"/>
+  <text class="d-t" x="390" y="228">MongoDB</text>
+  <text class="d-s" x="390" y="250">2dsphere index</text>
+
+  <line class="d-line-soft" x1="655" y1="132" x2="655" y2="206" marker-end="url(#a1s)"/>
+  <text class="d-s" x="655" y="228">הדפדפן — הכל כאן פומבי</text>
+  <text class="d-s" x="655" y="248">אין כאן סודות</text>
+</svg>
+<p class="cap">הזרימה מימין לשמאל. רק ה-Backend מחזיק את מפתח Gemini — הדפדפן לעולם לא רואה אותו.</p>
 </div>
 
 <table>
@@ -250,28 +315,50 @@
 
 <p><code>data/</code> לא יודעת ש-<code>logic/</code> קיימת. <code>logic/</code> לא יודעת ש-HTTP קיים — אין בה <code>req</code>, אין <code>res</code>, ואין מספרי סטטוס. זה מה שמאפשר לבדוק את הלוגיקה העסקית בלי לעלות שרת, ולהחליף את ספק ה-LLM בלי לגעת בה.</p>
 
-<div class="flow">
-Request
-   │
-   ▼
-routes/          ← איזו כתובת, אילו שומרים
-   │
-   ▼
-middleware/      ← אימות → ולידציה → תפקיד → הגבלת קצב
-   │
-   ▼
-controllers/     ← מוציא נתונים מ-req, קורא לשירות, מחזיר סטטוס
-   │
-   ▼
-logic/impl/      ← ★ כל הכללים העסקיים ★
-   │       │
-   │       ├──▶ converters/     Entity → Boundary
-   │       └──▶ repositories/   השאילתות בלבד
-   │                  │
-   │                  ▼
-   │             data/          סכמות Mongoose
-   ▼                  │
-Response  ◀───────────┘
+<div class="diagram">
+<svg viewBox="0 0 780 500" role="img" aria-label="זרימת הבקשה בין השכבות">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/>
+    </marker>
+    <marker id="a2s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+  </defs>
+
+  <text class="d-t" x="500" y="22">בקשה נכנסת</text>
+  <line class="d-line" x1="500" y1="30" x2="500" y2="48" marker-end="url(#a2)"/>
+  <rect class="d-box" x="330" y="52" width="340" height="50" rx="6"/>
+  <text class="d-t" x="500" y="74">routes/</text>
+  <text class="d-s" x="500" y="92">איזו כתובת · אילו שומרים</text>
+  <line class="d-line" x1="500" y1="102" x2="500" y2="120" marker-end="url(#a2)"/>
+  <rect class="d-box" x="330" y="120" width="340" height="50" rx="6"/>
+  <text class="d-t" x="500" y="142">middleware/</text>
+  <text class="d-s" x="500" y="160">אימות · ולידציה · תפקיד · קצב</text>
+  <line class="d-line" x1="500" y1="170" x2="500" y2="188" marker-end="url(#a2)"/>
+  <rect class="d-box" x="330" y="188" width="340" height="50" rx="6"/>
+  <text class="d-t" x="500" y="210">controllers/</text>
+  <text class="d-s" x="500" y="228">רק HTTP · בלי try/catch</text>
+  <line class="d-line" x1="500" y1="238" x2="500" y2="256" marker-end="url(#a2)"/>
+  <rect class="d-box-accent" x="330" y="256" width="340" height="50" rx="6"/>
+  <text class="d-t" x="500" y="278">logic/impl/</text>
+  <text class="d-s" x="500" y="296">כל הכללים העסקיים</text>
+  <line class="d-line" x1="500" y1="306" x2="500" y2="324" marker-end="url(#a2)"/>
+  <rect class="d-box" x="330" y="324" width="340" height="50" rx="6"/>
+  <text class="d-t" x="500" y="346">repositories/</text>
+  <text class="d-s" x="500" y="364">שאילתות בלבד</text>
+  <line class="d-line" x1="500" y1="374" x2="500" y2="392" marker-end="url(#a2)"/>
+  <rect class="d-box-db" x="330" y="392" width="340" height="50" rx="6"/>
+  <text class="d-t" x="500" y="414">data/</text>
+  <text class="d-s" x="500" y="432">סכמות Mongoose</text>
+  <line class="d-line" x1="326" y1="281" x2="268" y2="281" marker-end="url(#a2)"/>
+  <rect class="d-box" x="70" y="256" width="195" height="50" rx="6"/>
+  <text class="d-t" x="167" y="278">converters/</text>
+  <text class="d-s" x="167" y="296">Entity → Boundary</text>
+  <path class="d-line-soft" d="M674,417 L740,417 L740,77 L674,77" marker-end="url(#a2s)"/>
+  <text class="d-s" x="757" y="270" transform="rotate(90 757 270)">התשובה בדרך החוצה</text>
+</svg>
+<p class="cap">כל שכבה מכירה רק את זו שמתחתיה. <code>data/</code> לא יודעת ש-<code>logic/</code> קיימת, ו-<code>logic/</code> לא יודעת ש-HTTP קיים.</p>
 </div>
 
 <h2 id="s05"><span class="num">05</span><code>routes/</code> — מיפוי כתובות</h2>
@@ -520,54 +607,100 @@ Hazard.find({
 
 <p>מה קורה מהרגע שאדם לוחץ "שלח" ועד שהשורה קיימת במסד. זה המסלול המלא.</p>
 
-<div class="flow">
-[1] הדפדפן                POST /hazards
-    hazardService.ts       { type, latitude, longitude, description, hazardPhotos:[base64] }
-         │
-[2] routes/hazard.routes.ts
-         │  requireAuth      → אין טוקן תקף? 401, נעצר כאן
-         │  validate(schema) → קו רוחב 91? 400, נעצר כאן
-         ▼
-[3] controllers/hazard.controller.ts
-         │  await this.hazards.create(req.body, req.user)
-         ▼
-[4] logic/impl/hazards.service.impl.ts  ★ כאן כל הכללים ★
-         │
-         │  4a. assertNotDuplicate()
-         │      └─▶ repositories → $geoWithin ברדיוס 50 מ׳
-         │          ├── אותו סוג נמצא?      → ConflictException 409  ✖ נעצר
-         │          ├── סוג אחר בסביבה?     → ai-service מכריע
-         │          │                          לא זמין? ממשיכים (fail open)
-         │          └── כלום בסביבה?         → ממשיכים
-         │
-         │  4b. photos.saveMany()
-         │      └─▶ sharp: סיבוב EXIF → הקטנה ל-1600px → WebP
-         │          מחזיר ["/uploads/1755...-a3f9.webp"]
-         │
-         │  4c. hazards.create()   ← רק עכשיו נוגעים במסד
-         ▼
-[5] repositories/hazard.repository.ts
-         │  Hazard.create(data)
-         ▼
-[6] data/hazard.entity.ts
-         │  pre('save') → location = { type:'Point', coordinates:[lng, lat] }
-         │  timestamps  → createdAt, updatedAt
-         │  enum/min/max נאכפים
-         ▼
-    ┌──────────────── MongoDB ────────────────┐
-    │  db.hazards.insertOne({ ... })          │
-    │  שלושת האינדקסים מתעדכנים               │
-    └─────────────────────────────────────────┘
-         │
-[7] repository קורא מחדש עם populate('reportedBy')
-         ▼
-[8] converters/hazard.converter.ts
-         │  location ו-__v לא עוברים
-         │  נתיב תמונה → URL מלא
-         ▼
-[9] events → SSE 'hazard:created' לכל הטאבים הפתוחים
-         ▼
-[10] 201 Created + HazardBoundary
+<div class="diagram">
+<svg viewBox="0 0 780 940" role="img" aria-label="מסע של דיווח אחד מהלחיצה עד המסד">
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/>
+    </marker>
+    <marker id="a3s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+    <marker id="a3x" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--danger)"/>
+    </marker>
+  </defs>
+
+  <rect class="d-box" x="240" y="14" width="340" height="56" rx="6"/>
+  <text class="d-no" x="258" y="34">1</text>
+  <text class="d-t" x="410" y="36">services/hazardService.ts</text>
+  <text class="d-s" x="410" y="57">POST /hazards { type, lat, lng, photos }</text>
+  <line class="d-line" x1="410" y1="70" x2="410" y2="90" marker-end="url(#a3)"/>
+
+  <rect class="d-box" x="240" y="94" width="340" height="70" rx="6"/>
+  <text class="d-no" x="258" y="114">2</text>
+  <text class="d-t" x="410" y="116">routes/ + middleware/</text>
+  <text class="d-s" x="410" y="137">אין טוקן תקף? requireAuth ← 401</text>
+  <text class="d-s" x="410" y="155">קו רוחב 91? validate ← 400</text>
+  <line class="d-line" x1="410" y1="164" x2="410" y2="184" marker-end="url(#a3)"/>
+
+  <rect class="d-box" x="240" y="188" width="340" height="52" rx="6"/>
+  <text class="d-no" x="258" y="208">3</text>
+  <text class="d-t" x="410" y="210">controllers/</text>
+  <text class="d-s" x="410" y="231">hazards.create(req.body, req.user)</text>
+  <line class="d-line" x1="410" y1="240" x2="410" y2="260" marker-end="url(#a3)"/>
+
+  <rect class="d-box-accent" x="60" y="264" width="700" height="300" rx="8"/>
+  <text class="d-no" x="80" y="288">4</text>
+  <text class="d-t" x="410" y="290">logic/impl/hazards.service.impl.ts</text>
+
+  <rect class="d-box" x="85" y="304" width="650" height="140" rx="6"/>
+  <text class="d-t" x="410" y="328">4a. assertNotDuplicate()</text>
+  <text class="d-s" x="410" y="346">$geoWithin</text>
+  <text class="d-s" x="410" y="363">רדיוס 50 מטר</text>
+
+  <text class="d-s" x="250" y="386">אותו סוג בסביבה?</text>
+  <line class="d-line" x1="345" y1="382" x2="420" y2="382" stroke="var(--danger)" marker-end="url(#a3x)"/>
+  <text class="d-s" x="545" y="386" fill="var(--danger)">409 — נעצר כאן</text>
+
+  <text class="d-s" x="250" y="410">סוג אחר בסביבה?</text>
+  <line class="d-line-soft" x1="345" y1="406" x2="420" y2="406" marker-end="url(#a3s)"/>
+  <text class="d-s" x="565" y="404">ai-service מכריע</text>
+  <text class="d-s" x="565" y="421">לא זמין? ממשיכים</text>
+
+  <text class="d-s" x="250" y="436">כלום בסביבה?</text>
+  <line class="d-line-soft" x1="345" y1="432" x2="420" y2="432" marker-end="url(#a3s)"/>
+  <text class="d-s" x="520" y="436">ממשיכים</text>
+
+  <line class="d-line" x1="410" y1="444" x2="410" y2="460" marker-end="url(#a3)"/>
+  <rect class="d-box" x="85" y="464" width="650" height="46" rx="6"/>
+  <text class="d-t" x="410" y="484">4b. photos.saveMany()</text>
+  <text class="d-s" x="410" y="502">sharp: rotate → 1600px → WebP</text>
+
+  <line class="d-line" x1="410" y1="510" x2="410" y2="522" marker-end="url(#a3)"/>
+  <rect class="d-box" x="85" y="526" width="650" height="30" rx="6"/>
+  <text class="d-t" x="410" y="546">4c. hazards.create()</text>
+
+  <line class="d-line" x1="410" y1="564" x2="410" y2="586" marker-end="url(#a3)"/>
+
+  <rect class="d-box" x="240" y="590" width="340" height="86" rx="6"/>
+  <text class="d-no" x="258" y="610">5</text>
+  <text class="d-t" x="410" y="612">data/hazard.entity.ts</text>
+  <text class="d-s" x="410" y="633">pre('save') → location [lng, lat]</text>
+  <text class="d-s" x="410" y="651">timestamps → createdAt, updatedAt</text>
+  <text class="d-s" x="410" y="669">נאכפים: enum · min · max</text>
+  <line class="d-line" x1="410" y1="676" x2="410" y2="696" marker-end="url(#a3)"/>
+
+  <rect class="d-box-db" x="240" y="700" width="340" height="70" rx="6"/>
+  <text class="d-t" x="410" y="724">MongoDB</text>
+  <text class="d-s" x="410" y="744">db.hazards.insertOne(…)</text>
+  <text class="d-s" x="410" y="762">שלושת האינדקסים מתעדכנים</text>
+  <line class="d-line" x1="410" y1="770" x2="410" y2="790" marker-end="url(#a3)"/>
+
+  <rect class="d-box" x="240" y="794" width="340" height="70" rx="6"/>
+  <text class="d-no" x="258" y="814">6</text>
+  <text class="d-t" x="410" y="816">converters/</text>
+  <text class="d-s" x="410" y="837">לא עוברים: location · __v</text>
+  <text class="d-s" x="410" y="855">נתיב תמונה הופך לכתובת מלאה</text>
+  <line class="d-line" x1="410" y1="864" x2="410" y2="884" marker-end="url(#a3)"/>
+
+  <rect class="d-box-accent" x="240" y="888" width="340" height="38" rx="6"/>
+  <text class="d-t" x="410" y="913">201 Created + HazardBoundary</text>
+
+  <path class="d-line-soft" d="M236,907 L150,907 L150,640" marker-end="url(#a3s)"/>
+  <text class="d-s" x="133" y="775" transform="rotate(-90 133 775)">SSE · hazard:created</text>
+</svg>
+<p class="cap">בדיקת הכפילות רצה <strong>לפני</strong> שנשמרת תמונה ולפני שנכתב משהו למסד — דיווח כפול לא מבזבז מקום בדיסק.</p>
 </div>
 
 <blockquote class="note">
