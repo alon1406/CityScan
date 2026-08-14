@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchMyHazards, type Hazard } from '../api/client'
+import { fetchMyHazards, type Hazard } from '../services/hazardService'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 const TYPE_LABELS: Record<string, string> = {

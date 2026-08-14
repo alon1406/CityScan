@@ -1,4 +1,4 @@
-import type { Hazard, HazardStatus, HazardType } from '../api/client'
+import type { Hazard, HazardStatus, HazardType } from '../services/hazardService'
 
 /**
  * The demo dataset the browser-only build starts from.

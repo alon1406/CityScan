@@ -1,7 +1,17 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import * as api from '../api/client'
+import * as authService from '../services/authService'
+import { session, type SessionUser } from '../core/session'
 
-type User = { _id: string; email: string; name?: string; role?: 'user' | 'admin' }
+/**
+ * SmartCollect has no equivalent of this file: its pages read `session` directly,
+ * because plain scripts have nowhere else to put shared state. React does, and a
+ * component that reads localStorage during render will not re-render when it changes.
+ *
+ * So this is the one addition beyond that skeleton — and it is deliberately thin. It
+ * holds no keys and touches no storage of its own; `core/session` owns both, and this
+ * only mirrors them into React state so the tree re-renders on sign in and sign out.
+ */
+type User = SessionUser
 
 interface AuthContextValue {
   user: User | null
@@ -17,10 +27,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-const TOKEN_KEY = 'cityscan_token'
-const USER_KEY = 'cityscan_user'
-const DEMO_MODE_KEY = 'cityscan_demo'
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
@@ -28,55 +34,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemoMode, setIsDemoMode] = useState(false)
 
   useEffect(() => {
-    const stored = localStorage.getItem(TOKEN_KEY)
-    const storedUser = localStorage.getItem(USER_KEY)
-    const storedDemo = localStorage.getItem(DEMO_MODE_KEY)
-    if (stored && storedUser) {
-      try {
-        setToken(stored)
-        setUser(JSON.parse(storedUser) as User)
-        setIsDemoMode(storedDemo === '1')
-      } catch {
-        localStorage.removeItem(TOKEN_KEY)
-        localStorage.removeItem(USER_KEY)
-        localStorage.removeItem(DEMO_MODE_KEY)
-      }
+    const storedToken = session.getToken()
+    const storedUser = session.getUser()
+    if (storedToken && storedUser) {
+      setToken(storedToken)
+      setUser(storedUser)
+      setIsDemoMode(session.isDemoMode())
     } else {
+      // Either nothing was stored or the user entry failed to parse. Half a session
+      // is worse than none — clear it rather than run with a token and no user.
+      session.clear()
       setIsDemoMode(false)
     }
     setIsLoading(false)
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { token: t, user: u } = await api.login(email, password)
-    localStorage.setItem(TOKEN_KEY, t)
-    localStorage.setItem(USER_KEY, JSON.stringify(u))
+    const { token: t, user: u } = await authService.login(email, password)
+    session.save(t, u)
     setToken(t)
     setUser(u)
   }, [])
 
   const demoLogin = useCallback(async (role: 'admin' | 'user') => {
-    const { token: t, user: u } = await api.demoLogin(role)
-    localStorage.setItem(TOKEN_KEY, t)
-    localStorage.setItem(USER_KEY, JSON.stringify(u))
-    localStorage.setItem(DEMO_MODE_KEY, '1')
+    const { token: t, user: u } = await authService.demoLogin(role)
+    session.save(t, u, true)
     setToken(t)
     setUser(u)
     setIsDemoMode(true)
   }, [])
 
   const register = useCallback(async (email: string, password: string, name?: string) => {
-    const { token: t, user: u } = await api.register(email, password, name)
-    localStorage.setItem(TOKEN_KEY, t)
-    localStorage.setItem(USER_KEY, JSON.stringify(u))
+    const { token: t, user: u } = await authService.register(email, password, name)
+    session.save(t, u)
     setToken(t)
     setUser(u)
   }, [])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    localStorage.removeItem(DEMO_MODE_KEY)
+    session.clear()
     setToken(null)
     setUser(null)
     setIsDemoMode(false)

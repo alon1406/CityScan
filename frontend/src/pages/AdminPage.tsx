@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchAdminHazards, updateHazard, getHazardPhotos, type Hazard, type HazardStatus, type HazardType } from '../api/client'
+import { fetchAdminHazards, updateHazard, getHazardPhotos, type Hazard, type HazardStatus, type HazardType } from '../services/hazardService'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 const TYPE_LABELS: Record<string, string> = {

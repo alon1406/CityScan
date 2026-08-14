@@ -4,7 +4,7 @@ import L from 'leaflet'
 type Position = [number, number]
 import 'leaflet/dist/leaflet.css'
 import ReportSidebar from './ReportSidebar'
-import { fetchHazards, fetchNearbyHazards, type Hazard } from '../api/client'
+import { fetchHazards, fetchNearbyHazards, type Hazard } from '../services/hazardService'
 
 /**
  * Marker images are served from this app, not from a third party.

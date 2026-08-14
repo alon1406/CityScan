@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { createHazard, fetchNearbyHazards, checkSameHazard, analyzeHazardPhoto, IS_DEMO, type HazardType } from '../api/client'
+import { createHazard, fetchNearbyHazards, checkSameHazard, type HazardType } from '../services/hazardService'
+import { analyzeHazardPhoto } from '../services/aiService'
+import { IS_DEMO } from '../core/config'
 
 const NOMINATIM_OPTIONS: RequestInit = {
   headers: { 'Accept-Language': 'en', 'User-Agent': 'CityScan/1.0 (hazard reporting)' },

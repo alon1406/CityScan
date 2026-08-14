@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { fetchAdminNewReportsCount } from '../api/client'
+import { fetchAdminNewReportsCount } from '../services/hazardService'
 import 'bootstrap/dist/css/bootstrap.min.css'
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org/search'

@@ -1,4 +1,4 @@
-import { IS_DEMO } from '../api/client'
+import { IS_DEMO } from '../core/config'
 
 export default function DemoBanner() {
   if (!IS_DEMO) return null
