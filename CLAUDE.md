@@ -1,346 +1,320 @@
 # CLAUDE.md
 
-Context for working on CityScan. Read this first; it should remove the need for a
-briefing at the start of a session.
+Start here. This file explains what CityScan is, how it is built, and the few
+rules that are easy to break by accident.
 
 ---
 
-## 1. Project Overview
+## 1. What the project is
 
-**CityScan turns residents into city sensors.** People report urban hazards —
-potholes, broken streetlights, debris, flooding — by clicking a map, and every
-report lands on a shared live map a municipality can work from.
+**CityScan lets residents report urban hazards on a shared map.** Someone sees a
+pothole, a broken streetlight, debris or flooding, clicks the spot on the map,
+and files a report. Everyone sees the same map; a municipality can work from it.
 
-The problem it actually solves is **duplicate reports**. The same pothole gets
-filed eleven times and no reporter can tell it was already raised. CityScan
-answers that in two tiers:
+The interesting part is **duplicate detection**. The same pothole gets reported
+eleven times and no one can tell it was already raised, so CityScan checks every
+new report in two stages:
 
-- **Tier 1 — deterministic.** An unresolved hazard of the *same* type within 50 m
-  is a duplicate, full stop. A `$geoWithin` / `$centerSphere` query against a
-  `2dsphere` index. Milliseconds, no network, works with the AI service down.
-- **Tier 2 — judgement.** Runs only when nearby hazards are of a *different* type,
-  where "debris" and "flooding" five metres apart may or may not be one problem.
-  An LLM decides.
+1. **Same type within 50 metres** → duplicate, rejected immediately. A database
+   query. No AI, no network, works offline.
+2. **Different type nearby** → genuinely ambiguous ("debris" and "flooding" five
+   metres apart may be one problem or two), so an LLM decides.
 
-**Tier 2 fails open by design.** If the AI service is unreachable the report goes
-through. A citizen must always be able to file, even when an optional dependency
-is down — which is also why duplicate detection is not delegated to an automation
-tool.
+If the AI is unreachable, stage 2 **lets the report through**. Reporting must
+never depend on an optional service.
 
-This is a portfolio project. Its backend architecture deliberately mirrors an
-earlier Spring Boot project (SmartCollect) so the same layering reads identically
-in two languages. **A local copy of SmartCollect lives at
-`C:\Users\alone\Documents\CityScan\SmartCollect-master`** — read it rather than
-guessing when the question is "how does SmartCollect do this".
+It is a portfolio project. The backend layering deliberately copies an earlier
+Java/Spring project called SmartCollect, so the same architecture reads the same
+way in two languages. That project is on disk at
+`C:\Users\alone\Documents\CityScan\SmartCollect-master` — read it instead of
+guessing when a question is "how does SmartCollect do this".
 
 ---
 
-## 2. Tech Stack
+## 2. Functional requirements
 
-### backend/ — Express 5 + TypeScript (ESM)
+What the system does.
 
-| | |
+| # | Requirement |
 |---|---|
-| Runtime | Node 24, `"type": "module"`, `module: nodenext` |
-| Framework | Express 5 |
-| Database | MongoDB via Mongoose 9 |
-| Validation | Zod 4 — the schema is the source, the type comes from `z.infer` |
-| Auth | `jsonwebtoken` + `bcrypt` |
-| Images | `sharp` to WebP, EXIF stripped |
-| Security | `helmet`, `express-rate-limit`, CORS |
-| Tests | Vitest + `supertest` + `mongodb-memory-server` (46 tests) |
-| Strictness | `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax` |
+| F1 | A visitor can view all hazards on a map without signing in |
+| F2 | A user can register, sign in, and sign out |
+| F3 | A visitor can sign in with one click as a demo user or demo admin |
+| F4 | A signed-in user can file a hazard by clicking a location on the map |
+| F5 | A report has a type, coordinates, and optionally a description, an address and photos |
+| F6 | The address is filled in automatically from the coordinates, and can be searched |
+| F7 | The system rejects a report that duplicates an unresolved one within 50 m |
+| F8 | Ambiguous nearby reports of a different type are judged by an LLM |
+| F9 | A photo can be described automatically by AI |
+| F10 | A user can see a list of their own reports |
+| F11 | An admin can see every report, filter by status and type, search, and change status |
+| F12 | The admin navigation shows a live count of open reports |
+| F13 | Deleting a report also deletes its photo files |
+| F14 | The map reflects new reports without a manual refresh |
+| F15 | The public demo can be reset to its seeded state |
 
-### frontend/ — React 19 + Vite
-
-| | |
-|---|---|
-| Framework | React 19, `react-router-dom` 7 |
-| Build | Vite 7, `tsc -b && vite build` |
-| Map | Leaflet 1.9 + `react-leaflet` 5, CARTO Voyager tiles |
-| Styling | Bootstrap 5 plus `App.css` / `index.css` |
-| Geocoding | Nominatim, no API key |
-| Lint | ESLint 9 + `typescript-eslint` — **not yet wired into CI**, see section 7 |
-
-### ai-service/ — FastAPI + Gemini
-
-FastAPI, `uvicorn`, `google-generativeai`, Pillow. Two endpoints, both behind an
-`X-API-Key` header — `POST /analyze` (describe a photo) and `POST /check-duplicate`
-(tier 2 adjudication) — plus `GET /health`.
-
-### Infrastructure
-
-Vercel (frontend, live), MongoDB Atlas M0, GitHub Actions (CI and demo reset),
-Docker Compose for the local database. Azure is the planned backend host.
+**Two of these exist in the API but have no UI yet.** `PATCH /hazards/:id` and
+`DELETE /hazards/:id` accept the reporter or an admin, and deletion removes the
+photo files (F13) — but `MyReportsPage` is read-only, and the frontend has no
+delete call at all. The admin page is the only place that mutates, and only to
+change status. If you are asked to "fix editing", it is not broken; it was never
+built on the client.
 
 ---
 
-## 3. Architecture & Structure
+## 3. Non-functional requirements
+
+How well it has to do it. Each of these is implemented somewhere specific.
+
+### Security
+- Passwords stored as bcrypt hashes, never plain text.
+- The password hash is `select: false` in the schema, so a normal query does not
+  even load it, and converters build responses field by field so it cannot leak.
+- Every route input validated with Zod before it reaches a controller.
+- Route-level role guards; the authorization policy is readable from `routes/`.
+- `helmet` headers and rate limiting on write endpoints.
+- **The Gemini API key never reaches the browser.** The frontend calls the
+  backend, the backend calls the AI service.
+
+### Privacy
+- Uploaded photos have all metadata stripped, including **EXIF GPS**. The report
+  already carries coordinates; there is no reason to also publish the exact spot
+  the reporter was standing.
+
+### Performance
+- Radius queries are backed by a `2dsphere` index instead of scanning documents.
+- List endpoints exclude photos from the response.
+- Photos are compressed to WebP at roughly 10% of the original size.
+- A connection pool of 10, and a 10-second database timeout so a dead database
+  fails loudly instead of hanging.
+
+### Reliability
+- Duplicate detection stage 2 fails open — an unreachable AI never blocks a report.
+- All errors are rendered in one place, in one shape.
+- If saving a report fails after its photos were written, the photos are deleted
+  rather than left orphaned on disk.
+
+### Maintainability
+- Strict layering, one direction only (section 4).
+- Services depend on interfaces, wired in one file (`container.ts`).
+- Enums defined once and read by the schema, the validation and the runtime.
+- 46 integration tests against a real, disposable database.
+
+### Portability
+- Environment profiles (`development` / `production` / `test`), validated at boot.
+- Local database runs in Docker; production points at MongoDB Atlas.
+
+### Known limits
+- List endpoints are capped at 500 rows with no real pagination.
+- Live updates assume a single backend instance.
+
+---
+
+## 4. Architecture — layers
+
+The backend is built in strict layers, copied from SmartCollect.
+
+**One rule holds it together: each layer knows only the layer below it.**
+`data/` does not know `logic/` exists. `logic/` does not know HTTP exists — no
+`req`, no `res`, no status codes anywhere in it. That is what lets business logic
+be tested without starting a server, and the AI provider be swapped without
+touching it.
+
+```
+    incoming request
+           │
+           ▼
+    routes/          which URL, which guards
+           │
+           ▼
+    middleware/      auth → validation → role → rate limit
+           │
+           ▼
+    controllers/     HTTP only: read input, call service, send result
+           │
+           ▼
+    logic/impl/      ALL business rules live here
+           │  │
+           │  └────▶ converters/     entity → response object
+           ▼
+    repositories/    database queries only
+           │
+           ▼
+    data/            Mongoose schemas → MongoDB
+```
+
+The frontend follows the same idea in a smaller way:
+
+```
+    pages/ + components/     what the user sees
+           │
+           ▼
+    services/                one file per domain: auth, hazards, ai
+           │
+           ▼
+    core/                    config, http, session, demo storage
+```
+
+**`core/` knows nothing about the domain.** It has no idea what a pothole is.
+Domain constants like the 50-metre radius live in `services/hazardService.ts`.
+
+---
+
+## 5. Project structure
 
 ```
 CityScan/
-├── backend/src/
-│   ├── routes/          URL mapping and guard chaining. The authorization
-│   │                    policy is readable from these files alone.
-│   ├── middleware/      auth · validate · requireRole · rateLimiter ·
-│   │                    demoRestrict · asyncHandler · errorHandler
-│   ├── controllers/     HTTP only. No try/catch, no hand-picked status codes.
-│   ├── boundaries/      DTOs — the wire contract. Each exports its Zod schema
-│   │                    and derives its type with z.infer.
-│   ├── logic/           Service interfaces — what the application can do.
-│   │   └── impl/        Implementations. ALL business logic lives here.
-│   ├── converters/      Entity to Boundary. Where a password hash cannot leak.
-│   ├── repositories/    Queries only. The $geoWithin radius maths lives here.
-│   ├── data/            Mongoose schemas, enums, demo fixtures.
-│   ├── errors/          Exceptions that carry their own HTTP status.
-│   ├── config/          loadEnv → env (Zod-validated, frozen) → db
-│   ├── scripts/         seedDemo · clearReports
-│   ├── container.ts     Composition root — DI by hand, whole graph in one file.
-│   ├── app.ts           Express assembly
-│   └── server.ts        Entry point. loadEnv MUST be its first import.
 │
-├── frontend/src/        Mirrors SmartCollect's static/js layout
-│   ├── core/            config · http · session · demoVault
-│   ├── services/        authService · hazardService · aiService
-│   ├── pages/           LoginPage · RegisterPage · AdminPage · MyReportsPage
-│   ├── components/      MapComponent · ReportSidebar · NavBar · DemoBanner
-│   ├── contexts/        AuthContext
-│   └── data/            demoFixtures (mirrors the backend's)
-├── frontend/public/markers/   8 self-hosted PNG marker icons
+├── backend/                Express 5 + TypeScript
+│   └── src/
+│       ├── routes/         URL mapping and guards
+│       ├── middleware/     auth, validation, roles, rate limit, errors
+│       ├── controllers/    HTTP only
+│       ├── boundaries/     request/response shapes + Zod schemas
+│       ├── logic/          service interfaces
+│       │   └── impl/       the implementations — all business logic
+│       ├── converters/     entity ⇄ response object
+│       ├── repositories/   database queries
+│       ├── data/           Mongoose schemas, enums, demo fixtures
+│       ├── errors/         exceptions carrying their own HTTP status
+│       ├── config/         environment profiles + DB connection
+│       ├── scripts/        seeding, cleanup
+│       ├── container.ts    wires everything together
+│       ├── app.ts          Express setup
+│       └── server.ts       entry point
 │
-├── ai-service/app/main.py
-├── docs/                cityscan-system-guide.html + PDF (Hebrew) ·
-│                        demo-reset-schedule.md
-└── .github/workflows/   ci.yml · demo-reset.yml
+├── frontend/               React 19 + Vite
+│   ├── public/markers/     8 map marker icons, hosted by us
+│   └── src/
+│       ├── core/           config · http · session · demoVault
+│       ├── services/       authService · hazardService · aiService
+│       ├── pages/          Login · Register · Admin · MyReports
+│       ├── components/     MapComponent · ReportSidebar · NavBar · DemoBanner
+│       ├── contexts/       AuthContext
+│       └── data/           demo fixtures
+│
+├── ai-service/             FastAPI + Gemini
+│   └── app/main.py
+│
+├── docs/                   Hebrew system guide (HTML + PDF)
+├── .github/workflows/      CI, demo reset
+└── docker-compose.dev.yml  local MongoDB
 ```
-
-### The one rule
-
-**Each layer knows only the one below it.** `data/` does not know `logic/` exists;
-`logic/` does not know HTTP exists — no `req`, no `res`, no status codes. That is
-what lets business logic be tested without a server and the LLM provider be
-swapped without touching it.
-
-Request path: `routes → middleware → controllers → logic/impl → repositories → data`,
-with `converters` called on the way out.
-
-The same rule holds on the frontend: **`core/` knows nothing about the domain.**
-`UNRESOLVED`, `DUPLICATE_RADIUS_METERS` and `distanceMeters` live in
-`services/hazardService.ts`, not in `core/config.ts`.
 
 ---
 
-## 4. Commands
+## 6. Tech stack
+
+| Part | Uses |
+|---|---|
+| Frontend | React 19, Vite 7, TypeScript, React Router 7, Leaflet + CARTO tiles, Bootstrap 5 |
+| Backend | Node 24, Express 5, TypeScript (ESM), Mongoose 9, Zod 4, JWT, bcrypt, sharp, helmet |
+| AI service | Python 3.12, FastAPI, Google Gemini |
+| Database | MongoDB (local Docker in dev, Atlas M0 in production) |
+| Tests | Vitest, supertest, mongodb-memory-server |
+| Hosting | Vercel (frontend, live), Azure planned for the backend |
+| CI | GitHub Actions |
+
+---
+
+## 7. Commands
 
 ```bash
-npm install --prefix backend
-npm install --prefix frontend
-npm install
+npm install --prefix backend && npm install --prefix frontend && npm install
 ```
 
 ```bash
 npm run db:up --prefix backend
 ```
-
-Starts the local MongoDB container. Needs Docker Desktop running; once per reboot.
-`npm run db:down --prefix backend` stops it.
+Starts the local MongoDB container. Needs Docker Desktop. Once per reboot.
 
 ```bash
 npm run seed:demo --prefix backend
 ```
+Fills the database with 15 sample hazards.
 
 ```bash
 npm run dev
 ```
-
-Runs all three services together via `concurrently`. Individually:
-`npm run dev --prefix backend` (nodemon + tsx), `npm run dev --prefix frontend`
-(vite), `node scripts/start-ai.js`.
+Runs backend, frontend and AI service together. Open http://localhost:5173 and
+click **Sign in as Admin (Demo)**.
 
 ```bash
 npm test --prefix backend
 ```
-
-46 integration tests against a real disposable `mongod`. No Docker required.
-`npm run test:watch --prefix backend` for watch mode.
+46 integration tests against a real disposable database. No Docker needed.
 
 ```bash
 npm run build --prefix frontend
 ```
-
-`tsc -b && vite build`, so a type error fails the build. Backend build is
-`npm run build --prefix backend` (tsc to `dist/`).
+Type-checks and builds. Backend build is `npm run build --prefix backend`.
 
 ```bash
 npx cross-env VITE_IS_DEMO=true npm run dev --prefix frontend
 ```
-
-Runs the frontend in exactly the configuration the live deployment uses. Use this
-before every merge — see section 7.
-
-```bash
-npm run lint --prefix frontend
-```
-
-Currently reports about ten pre-existing errors. Not in CI yet.
+Runs the frontend exactly as the live site does. **Use this before every merge**
+— see section 9.
 
 ---
 
-## 5. Coding Conventions
+## 8. Coding conventions
 
-Derived from the existing code. Match them.
-
-### Both codebases
-
-- **TypeScript everywhere, strict.** No `any`. Use `unknown` plus a narrowing
-  cast where a boundary is genuinely untyped.
-- **`interface` for object shapes, `type` for unions and aliases.**
-- **Comments explain *why*, never *what*.** Existing comments justify a decision
-  or record a trap; none narrate the line below them. Match that density — sparse,
-  but substantial where present.
-- **Constants are named and hoisted** to the top of the module:
-  `EARTH_RADIUS_METERS`, `DUPLICATE_CODE`, `WITHOUT_PHOTOS`.
-
-### backend/ specifics
-
-- **Semicolons, single quotes.** The frontend uses neither. Do not unify them.
-- **Import paths end in `.js`** even for `.ts` files — required by ESM NodeNext.
-- **Classes with constructor injection**, wired in `container.ts`. Dependencies
-  are typed as the *interface* from `logic/`, never the implementation.
-- **Controllers use arrow-function class properties** wrapped in `asyncHandler`,
-  so `this` binds and rejections reach the error middleware.
-- **Never choose a status code outside `errors/`.** Throw `NotFoundException`,
-  `ConflictException`, `ForbiddenException` and so on. `middleware/errorHandler.ts`
-  is the only place that writes an error response.
-- **No module reads `process.env` at import time.** ESM evaluates imports before
-  module bodies, so an early read sees an unloaded environment. Read from `config`
-  inside functions.
-- **`data/enums.ts` is the single definition** of each value set — the Mongoose
-  schema, the Zod boundary and any runtime check all read from it.
-- **Converters build boundaries field by field**, never by spreading an entity.
-  That is what makes a password-hash leak structurally impossible.
+- **TypeScript, strict. No `any`.**
+- **Backend uses semicolons, frontend does not.** Do not unify them.
+- **Backend imports must end in `.js`** even for `.ts` files. Required by ESM.
+- **Never pick an HTTP status outside `errors/`.** Throw `NotFoundException`,
+  `ConflictException`, and so on; one middleware turns them into responses.
+- **Never read `process.env` at the top of a module.** Read from `config` inside
+  a function — imports run before the environment is loaded.
+- **Converters build responses field by field**, never by spreading an entity.
+  That is what makes a password leak structurally impossible.
 - **Anything that changes coordinates must use `.save()`**, never
-  `findOneAndUpdate`. Atomic operators bypass the `pre('save')` hook that keeps
-  the GeoJSON `location` in sync, and the geo index goes stale silently.
-
-### frontend/ specifics
-
-- **No semicolons, single quotes.**
-- **Function components with hooks.** Named function declarations for components,
-  arrow functions for handlers.
-- **Nothing calls `fetch` except `core/http.ts`** and `aiService`, which needs a
-  non-JSON path. Components call services; services call `api`.
-- **`core/session.ts` is the only module that names a storage key.**
-- **Every service function must handle `IS_DEMO`** for as long as demo mode exists.
-- **`VITE_*` variables are inlined into the shipped bundle.** They are public.
-  Never put a secret behind one.
+  `findOneAndUpdate`. Atomic updates skip the hook that keeps the geo field in
+  sync, and the index goes stale with no error at all.
+- **Only `core/http.ts` calls `fetch`.** Components call services, services call it.
+- **Comments explain *why*, not *what*.** Sparse, but substantial where present.
 
 ---
 
-## 6. Features
+## 9. Things that are easy to break
 
-| Feature | Implementation |
-|---|---|
-| Hazard reporting by map click | Leaflet click, stored as flat lat/lng plus a GeoJSON mirror |
-| Duplicate prevention within 50 m | `$geoWithin` + `$centerSphere` on a `2dsphere` index |
-| Ambiguous duplicate adjudication | Gemini, behind a server-side proxy |
-| Automatic photo description | Gemini vision |
-| Address autofill and search | Nominatim, forward and reverse |
-| Live map updates | Server-Sent Events at `/hazards/stream` — built, **not yet consumed**; the map still polls every 8 s |
-| Photo storage | `sharp` to WebP at roughly 10% of the original, EXIF including GPS stripped |
-| Auth and roles | JWT + bcrypt, route-level role guards |
-| Input validation | Zod schemas applied at the route boundary |
-| Admin panel | Filter by status and type, search, change status |
-| One-click demo access | Guest accounts; the demo admin is read-only |
-| Nightly demo reset | `POST /demo/reset`, token-guarded, constant-time compare |
+### The live demo is linked to a CV. It must work at all times.
 
-### API surface
+`https://city-scan-tawny.vercel.app` runs **the frontend alone**. There is no
+deployed backend yet. Reports are saved to `localStorage` by `core/demoVault.ts`.
 
-`/auth/register` · `/auth/login` · `/auth/demo-login` · `/hazards` (GET, POST) ·
-`/hazards/nearby` · `/hazards/stream` · `/hazards/:id` (GET, PATCH, DELETE) ·
-`/hazards/mine` · `/hazards/admin/list` · `/hazards/admin/count` ·
-`/hazards/check-same-hazard` · `/hazards/analyze-photo` · `/users/me` ·
-`/health/db` · `/demo/reset`
+- **Do not delete demo mode until a backend is actually live.** The public site
+  depends on that code.
+- Work on `develop`. `main` is what Vercel builds.
+- **Before merging**, run with `VITE_IS_DEMO=true` and check: demo login works,
+  12 markers appear, a second pothole on Dizengoff is rejected, the admin page
+  loads, and the console is clean. A successful build does not prove this.
+- After merging, check the live site.
+- If something breaks: Vercel Instant Rollback.
 
-Every error shares one shape, written in exactly one place:
+### Security rules
 
-```json
-{ "message": "…", "status": 409, "timestamp": "…", "path": "/hazards", "code": "DUPLICATE_HAZARD" }
-```
+- **Never commit a `.env` file.** Only `*.example` files belong in git. Check
+  with `git ls-files | grep env`.
+- **Never put a secret in a `VITE_` variable** — those are compiled into the
+  public bundle.
+- **Do not add a `Co-Authored-By: Claude` trailer to commits.** Nothing enforces
+  this automatically.
 
----
+### Current state
 
-## 7. Current State — read before planning work
+Done: layered backend, 46 tests, green CI, XSS fix, self-hosted map icons, CARTO
+basemap, frontend split into `core/` and `services/`.
 
-### The live demo is linked from a CV. It must work at every moment.
+Not done: backend and AI service are not deployed; the nightly demo reset is
+switched off until they are; the map still polls every 8 seconds instead of using
+the SSE endpoint that already exists; frontend lint is not in CI (10 known errors).
 
-`https://city-scan-tawny.vercel.app` runs the **frontend alone** with
-`VITE_IS_DEMO=true`. There is no deployed backend. Writes go to `localStorage`
-through `core/demoVault.ts`, reads come back from it, seeded from
-`frontend/src/data/demoFixtures.ts`.
+### How to work here
 
-**Do not delete demo mode until a backend is actually live.** The public site
-depends on that code path.
+The user writes in Hebrew and expects Hebrew replies; code and commits stay in
+English. **Verify instead of assuming** — several bugs here were only found by
+actually running something and looking at the output. Small changes, frequent
+merges.
 
-Working protocol:
-
-- All work on `develop`. `main` is what Vercel builds.
-- **Before merging, run locally with `VITE_IS_DEMO=true`** and check: demo login,
-  12 markers, the Dizengoff duplicate being rejected, the admin panel loading,
-  zero console errors. A clean build does not prove the demo works.
-- After merging, verify the live site within a minute or two.
-- Recovery is Vercel Instant Rollback.
-
-### Done
-
-Layered backend refactor · 46 tests · CI green · stored-XSS fix in the map popup ·
-self-hosted marker icons · CARTO basemap · non-blocking GPS notice · frontend
-split into `core/` and `services/` · single up-to-date system guide in `docs/`.
-
-### Not done
-
-- **Backend and ai-service are not deployed.** The plan targets Azure for
-  Students. Use `Standard_B2ats_v2` (AMD, x86-64): `B1s` is being retired and
-  student subscriptions often cannot create it, and `B2pts_v2` is ARM and would
-  require rebuilding every image. A public IPv4 costs about $3.65/month and is
-  not covered by the free tier.
-- **`demo-reset.yml` has its `schedule` commented out.** It failed every night
-  against a server that does not exist. Restore it in the same commit that sets
-  `DEMO_RESET_URL` and `DEMO_RESET_TOKEN`, after one manual `workflow_dispatch`
-  run returns 200.
-- **Frontend lint is not in CI** — about ten pre-existing errors in files that
-  pending work rewrites. A red badge is worse than no badge.
-- The map still polls every 8 s instead of using the existing SSE endpoint.
-
----
-
-## 8. Security Rules — non-negotiable
-
-- **Never commit an environment file.** Only `*.example` files are tracked.
-  Verify with `git ls-files | grep env` before any commit that touches config.
-- **Never put a secret behind a `VITE_` variable.** It ships in the bundle.
-- **The Gemini key lives only in `ai-service`**, reached through the backend
-  proxy. It must never reach the browser.
-- **Do not add a `Co-Authored-By: Claude` trailer to commits.** The user asked
-  for these commits to carry no AI attribution. No hook enforces this — it is on
-  you to omit it.
-- The demo reset endpoint is the most destructive code here. It is not registered
-  at all unless `DEMO_RESET_ENABLED=true`, and it requires a constant-time token
-  comparison.
-
----
-
-## 9. Working Preferences
-
-- **The user writes in Hebrew and expects Hebrew replies.** Code, comments,
-  commit messages and this file stay in English.
-- **Verify, do not assume.** Several bugs here were found only because something
-  was actually run and inspected: a retired Gemini model that still appeared in
-  `list_models()`, a seeder whose backdating silently did nothing twice, a
-  bidirectional-text bug visible only in a rendered screenshot. Check the output
-  before reporting success.
-- Small changes, frequent merges. If something breaks there should be one suspect.
-- The full working plan is at
-  `C:\Users\alone\.claude\plans\gentle-coalescing-thunder.md`.
-- The Hebrew system guide in `docs/` is the deep reference for architecture, the
-  database layer and the tooling decisions.
+Deeper reference: the Hebrew guide in `docs/`.
