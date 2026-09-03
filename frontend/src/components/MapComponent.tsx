@@ -328,16 +328,26 @@ export default function MapComponent({
         scrollWheelZoom
       >
         {/*
-          CARTO Voyager rather than the raw OSM tiles: the same OpenStreetMap data with a
-          restrained palette, so the hazard markers read as the foreground instead of
-          competing with the basemap. Free, no API key. Attribution is required by both
-          OpenStreetMap (the data) and CARTO (the styling).
+          Reverted from CARTO Voyager back to plain OpenStreetMap tiles.
+
+          CARTO's anonymous basemaps.cartocdn.com endpoint now returns an "API KEY
+          REQUIRED" watermark tile for every request, with an HTTP 200 — so it fails
+          silently, as a map that renders but shows nothing useful, rather than a
+          console error. Confirmed on 2026-08-14: every style on that domain (voyager,
+          light_all, dark_all) returns the same watermark, so this is a policy change
+          on CARTO's side, not something scoped to this app's traffic.
+
+          Plain OSM tiles are the safer default for a project with no billing account:
+          no key, no account, no dependency that can flip from free to gated without
+          any change in our own code. The muted-palette upgrade is deferred until a
+          tile source with a stable free tier is chosen deliberately, not stumbled
+          into by whatever the previous provider allowed anonymously last month.
         */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={20}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains="abc"
+          maxZoom={19}
         />
         <MapCenter center={mapCenter} />
         <MapFlyTo flyToTarget={flyToTarget} onFlown={handleFlown} />
